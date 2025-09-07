@@ -109,19 +109,32 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
 });
 
 router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
-  try {
-    const post = await createPost();
+  res.json({
+    showForm: {
+      name: 'submitForm',
+      form: {
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+            label: 'Title',
+          },
+          {
+            type: 'image',
+            name: 'image',
+            label: 'Image',
+          }
+        ],
+      },
+    },
+  });
+});
 
-    res.json({
-      navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
-    });
-  } catch (error) {
-    console.error(`Error creating post: ${error}`);
-    res.status(400).json({
-      status: 'error',
-      message: 'Failed to create post',
-    });
-  }
+router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
+  const { name } = req.body;
+  res.json({
+    showToast: `Thank you ${name}`
+  });
 });
 
 // Use router middleware
