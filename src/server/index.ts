@@ -2,6 +2,7 @@ import express from 'express';
 import { InitResponse, IncrementResponse, DecrementResponse } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
+import { media } from '@devvit/media';
 
 const app = express();
 
@@ -29,9 +30,10 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
     }
 
     try {
-      const [count, username] = await Promise.all([
+      const [count, username, media] = await Promise.all([
         redis.get('count'),
         reddit.getCurrentUsername(),
+        redis.get(postId)
       ]);
 
       res.json({
@@ -39,6 +41,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         postId: postId,
         count: count ? parseInt(count) : 0,
         username: username ?? 'anonymous',
+        gallery: media ?? 'empty',
       });
     } catch (error) {
       console.error(`API Init Error for post ${postId}:`, error);
@@ -131,10 +134,14 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
 });
 
 router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
-  const { name } = req.body;
-  res.json({
-    showToast: `Thank you ${name}`
+  const { image } = req.body;
+  const response = await media.upload({
+    url: image,
+    type: 'image',
   });
+
+  const post = await createPost([response.mediaUrl]);
+  redis.set(post.id, response.mediaUrl)
 });
 
 // Use router middleware

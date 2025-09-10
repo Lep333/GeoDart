@@ -38,7 +38,12 @@
         "b.tile.openstreetmap.org",
         "c.tile.openstreetmap.org"
       ]
-    }
+    },
+    "media": true,
+    "reddit": {
+      "asUser": ["SUBMIT_POST"]
+    },
+    "redis": true
   },
   "forms": {
     "submitForm": "/internal/menu/post-submit"

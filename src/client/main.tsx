@@ -7,6 +7,6 @@ import MapComponent from './MapComponent';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MapComponent />
+    <App />
   </StrictMode>
 );
