@@ -96,7 +96,7 @@ router.post<{ postId: string }, DecrementResponse | { status: string; message: s
 
 router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   try {
-    const post = await createPost();
+    const post = await createPost(['']);
 
     res.json({
       status: 'success',

@@ -1,11 +1,22 @@
-import { useCounter } from './hooks/useCounter';
+import { Routes, Route, BrowserRouter, Navigate, useLocation } from "react-router-dom";
+import Gallery from "./Gallery";
+import MapComponent from "./MapComponent";
+
+function RedirectIndex() {
+  const location = useLocation();
+  // Preserve query string
+  return <Navigate to={`/${location.search}`} replace />;
+}
 
 export const App = () => {
-  const { gallery } = useCounter();
-  console.log('Img URL: ', gallery)
   return (
-    <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
-      <img src={`${gallery}`} alt="Where is this?" />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Gallery />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/map" element={<MapComponent />} />
+        <Route path="*" element={<RedirectIndex />} />
+      </Routes>
+    </BrowserRouter>
   );
 };

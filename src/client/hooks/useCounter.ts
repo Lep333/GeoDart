@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { InitResponse, IncrementResponse, DecrementResponse } from '../../shared/types/api';
-import { GalleryMedia } from '@devvit/web/server';
 
 interface CounterState {
   count: number;
