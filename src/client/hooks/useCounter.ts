@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { InitResponse, IncrementResponse, DecrementResponse } from '../../shared/types/api';
+import type { InitResponse, IncrementResponse, DecrementResponse, PositionResponse } from '../../shared/types/api';
 
 interface CounterState {
   count: number;
   username: string | null;
   loading: boolean;
   gallery: string;
+  latitude: number;
+  longitude: number;
 }
 
 export const useCounter = () => {
@@ -14,6 +16,8 @@ export const useCounter = () => {
     username: null,
     loading: true,
     gallery: '',
+    latitude: 0,
+    longitude: 0
   });
   const [postId, setPostId] = useState<string | null>(null);
 
@@ -25,7 +29,14 @@ export const useCounter = () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: InitResponse = await res.json();
         if (data.type !== 'init') throw new Error('Unexpected response');
-        setState({ count: data.count, username: data.username, loading: false, gallery: data.gallery });
+        setState({ 
+          count: data.count,
+          username: data.username,
+          loading: false,
+          gallery: data.gallery,
+          latitude: 0,
+          longitude: 0
+        });
         setPostId(data.postId);
       } catch (err) {
         console.error('Failed to init counter', err);
@@ -57,12 +68,18 @@ export const useCounter = () => {
     [postId]
   );
 
-  const increment = useCallback(() => update('increment'), [update]);
-  const decrement = useCallback(() => update('decrement'), [update]);
+  const getOGLocation = useCallback(
+    async () => {
+      const response = await fetch('/api/submit_dart_position');
+      const data: PositionResponse = await response.json();
+      state.latitude = data.latitude;
+      state.longitude = data.longitude;
+    },
+    [postId]
+  )
 
   return {
     ...state,
-    increment,
-    decrement,
+    getOGLocation,
   } as const;
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { InitResponse, IncrementResponse, DecrementResponse } from '../shared/types/api';
+import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { media } from '@devvit/media';
@@ -33,7 +33,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
       const [count, username, media] = await Promise.all([
         redis.get('count'),
         reddit.getCurrentUsername(),
-        redis.get(postId)
+        redis.hGet(postId, 'image'),
       ]);
 
       res.json({
@@ -94,6 +94,46 @@ router.post<{ postId: string }, DecrementResponse | { status: string; message: s
   }
 );
 
+router.get<{ postId: string }, PositionResponse | { status: string; message: string }, unknown>(
+  '/api/og_position',
+  async (_req, res): Promise<void> => {
+    const { postId } = context;
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'postId is required',
+      });
+      return;
+    }
+
+    let [latitude, longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
+    console.log(latitude, longitude)
+    res.json({
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+    });
+  }
+);
+
+router.post<{ postId: string, latitude: number, longitude: number }, DecrementResponse | { status: string; message: string }, unknown>(
+  '/api/submit_dart_position',
+  async (_req, res): Promise<void> => {
+    const { postId } = context;
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'postId is required',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      status: '',
+      message: '',
+    });
+  }
+);
+
 router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   try {
     const post = await createPost(['']);
@@ -126,7 +166,17 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
             type: 'image',
             name: 'image',
             label: 'Image',
-          }
+          },
+          {
+            type: 'number',
+            name: 'latitude',
+            label: 'Latitude',
+          },
+          {
+            type: 'number',
+            name: 'longitude',
+            label: 'Longitude',
+          },
         ],
       },
     },
@@ -134,14 +184,20 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
 });
 
 router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
-  const { image } = req.body;
+  const { image, latitude, longitude } = req.body;
   const response = await media.upload({
     url: image,
     type: 'image',
   });
 
+  console.log(longitude, latitude);
+
   const post = await createPost([response.mediaUrl]);
-  redis.set(post.id, response.mediaUrl)
+  redis.hSet(post.id, {
+    image: response.mediaUrl,
+    latitude: String(latitude),
+    longitude: String(longitude),
+  });
 });
 
 // Use router middleware

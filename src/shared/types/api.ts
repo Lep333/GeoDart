@@ -19,3 +19,8 @@ export type DecrementResponse = {
   postId: string;
   count: number;
 };
+
+export type PositionResponse = {
+  longitude : number;
+  latitude : number;
+};
