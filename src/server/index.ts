@@ -107,7 +107,6 @@ router.get<{ postId: string }, PositionResponse | { status: string; message: str
     }
 
     let [latitude, longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
-    console.log(latitude, longitude)
     res.json({
       latitude: Number(latitude),
       longitude: Number(longitude),
@@ -189,8 +188,6 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
     url: image,
     type: 'image',
   });
-
-  console.log(longitude, latitude);
 
   const post = await createPost([response.mediaUrl]);
   redis.hSet(post.id, {

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -6,11 +7,9 @@ import "leaflet/dist/leaflet.css";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
-import { useNavigate } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
-import { PositionResponse } from "../shared/types/api";
 
-const MapComponent: React.FC = () => {
+const CreateGame: React.FC = () => {
   const navigate = useNavigate();
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
@@ -59,46 +58,23 @@ const MapComponent: React.FC = () => {
       };
   }, []);
 
-  async function fetchAndAddMarker() {
-    try {
-      const response = await fetch('/api/og_position'); // your backend endpoint
-      if (!response.ok) throw new Error("Failed to fetch location");
-
-      const data: PositionResponse = await response.json();
-      const lat = data.latitude;
-      const lng = data.longitude;
-
-      if (mapRef.current) {
-        const marker = L.marker([lat, lng]).addTo(mapRef.current);
-        marker.bindPopup(`Lat: ${lat}, Lng: ${lng}`);
-
-        // Optional: pan to new marker
-        const bounds = L.latLngBounds([
-          guess.current!.getLatLng(),
-          marker!.getLatLng(),
-        ]);
-        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-      }
-    } catch (err) {
-      console.error("Error fetching location:", err);
-    }
-  }
-
   return (
-    <div>
+    <div className="flex flex-col h-screen">
+      <label htmlFor="image_input">Image</label>
+      <input type="file" id="image_input" name="avatar" accept="image/png, image/jpeg" />
       <div
-        id="map"
-        className="z-10"
-        style={{ height: "100vh", width: "100%" }}
+          id="map"
+          className="flex-1 z-10"
+          style={{ height: "100%", width: "100%" }}
       />
-      <div className="fixed bottom-10 z-20 w-full flex justify-center">
+      <div className="z-20 w-full flex justify-center">
         <button
           className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
-          onClick={ fetchAndAddMarker }
-        >Place Dart</button>
+          onClick={ console.log }
+        >Submit Game</button>
       </div>
     </div>
   );
 };
 
-export default MapComponent;
+export default CreateGame;
