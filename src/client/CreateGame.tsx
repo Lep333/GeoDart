@@ -62,17 +62,6 @@ const CreateGame: React.FC = () => {
     <div className="flex flex-col h-screen">
       <label htmlFor="image_input">Image</label>
       <input type="file" id="image_input" name="avatar" accept="image/png, image/jpeg" />
-      <div
-          id="map"
-          className="flex-1 z-10"
-          style={{ height: "100%", width: "100%" }}
-      />
-      <div className="z-20 w-full flex justify-center">
-        <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
-          onClick={ console.log }
-        >Submit Game</button>
-      </div>
     </div>
   );
 };

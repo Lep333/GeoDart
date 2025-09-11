@@ -3,6 +3,7 @@ import Gallery from "./Gallery";
 import MapComponent from "./MapComponent";
 import Menu from "./Menu";
 import CreateGame from "./CreateGame";
+import TileImage from "./TileImage";
 
 function RedirectIndex() {
   const location = useLocation();

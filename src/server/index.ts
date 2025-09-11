@@ -4,6 +4,9 @@ import { redis, reddit, createServer, context, getServerPort } from '@devvit/web
 import { createPost } from './core/post';
 import { media } from '@devvit/media';
 
+import { pipeline } from "stream";
+import { promisify } from "util";
+
 const app = express();
 
 // Middleware for JSON body parsing
@@ -195,6 +198,30 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
     latitude: String(latitude),
     longitude: String(longitude),
   });
+});
+
+// promisify pipeline so we can await it
+const streamPipeline = promisify(pipeline);
+
+// Proxy OSM tiles: /osm/{z}/{x}/{y}.png
+router.get("/api/osm/:z/:x/:y.png", async (req, res) => {
+  const { z, x, y } = req.params;
+  const url = `https://a.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+
+  try {
+    const response = await fetch(url, { headers: {} });
+    if (!response.ok) {
+      res.status(response.status).send("Tile fetch error");
+      return;
+    }
+
+    res.setHeader("Content-Type", "image/png");
+    // Pipe the remote response body to the Express response
+    await streamPipeline(response.body as any, res);
+  } catch (err) {
+    console.error("Error fetching OSM tile:", err);
+    res.status(500).send("Internal proxy error");
+  }
 });
 
 // Use router middleware

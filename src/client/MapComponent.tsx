@@ -23,8 +23,23 @@ const MapComponent: React.FC = () => {
     const map = L.map("map").setView([20, 0], 2);
     mapRef.current = map;
 
+        L.TileLayer.include({
+      createTile: function(coords, done) {
+        const tile = document.createElement("img");
+        tile.alt = "";
+        fetch(`/api/osm/${coords.z}/${coords.x}/${coords.y}.png`)
+          .then(res => res.blob())
+          .then(blob => {
+            tile.src = URL.createObjectURL(blob);
+            done(null, tile);
+          })
+          .catch(err => done(err, tile));
+        return tile;
+      }
+    });
+    
     // Add OpenStreetMap tiles
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("/api/osm/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
