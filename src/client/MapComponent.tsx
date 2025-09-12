@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -15,6 +15,9 @@ const MapComponent: React.FC = () => {
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
   const guess = useRef<L.Marker>(null);
+  const [showScore, setShowScore] = useState(false);
+  const [score, setScore] = useState(0);
+  const [distance, setDistance] = useState(0);
   let latitude: number;
   let longitude: number;
 
@@ -23,7 +26,7 @@ const MapComponent: React.FC = () => {
     const map = L.map("map").setView([20, 0], 2);
     mapRef.current = map;
 
-        L.TileLayer.include({
+    L.TileLayer.include({
       createTile: function(coords, done) {
         const tile = document.createElement("img");
         tile.alt = "";
@@ -37,7 +40,7 @@ const MapComponent: React.FC = () => {
         return tile;
       }
     });
-    
+
     // Add OpenStreetMap tiles
     L.tileLayer("/api/osm/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -59,6 +62,9 @@ const MapComponent: React.FC = () => {
 
     // Add click handler
     map.on("click", (e) => {
+      if (showScore) {
+        return;
+      }
       if (marker) {
         map.removeLayer(marker);
       }
@@ -76,12 +82,26 @@ const MapComponent: React.FC = () => {
 
   async function fetchAndAddMarker() {
     try {
-      const response = await fetch('/api/og_position'); // your backend endpoint
+      const latitude = guess.current?.getLatLng().lat;
+      const longitude = guess.current?.getLatLng().lng;
+      const body = JSON.stringify({
+        latitude: latitude,
+        longitude: longitude,
+      });
+      const response = await fetch('/api/submit_dart_position', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+      });
       if (!response.ok) throw new Error("Failed to fetch location");
 
       const data: PositionResponse = await response.json();
       const lat = data.latitude;
       const lng = data.longitude;
+      setDistance(data.distance);
+      setScore(data.score);
+      console.log(`distance ${distance} score ${score}`);
+      setShowScore(true);
 
       if (mapRef.current) {
         const marker = L.marker([lat, lng]).addTo(mapRef.current);
@@ -99,18 +119,31 @@ const MapComponent: React.FC = () => {
     }
   }
 
+  function Scoreboard({show}: {show: boolean}) {
+    if (!show) {
+      return null;
+    }
+    return (
+      <div>
+        <div>{`Score: ${score}`}</div>
+        <div>{`Distance: ${distance}`}</div>
+      </div>
+    );
+  }
+
   return (
     <div>
+      <Scoreboard show={showScore} />
       <div
         id="map"
         className="z-10"
         style={{ height: "100vh", width: "100%" }}
       />
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
-        <button
+        { !showScore && <button
           className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
           onClick={ fetchAndAddMarker }
-        >Place Dart</button>
+        >Place Dart</button>}
       </div>
     </div>
   );

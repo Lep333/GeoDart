@@ -21,6 +21,8 @@ export type DecrementResponse = {
 };
 
 export type PositionResponse = {
-  longitude : number;
-  latitude : number;
+  longitude: number;
+  latitude: number;
+  distance: number;
+  score: number;
 };

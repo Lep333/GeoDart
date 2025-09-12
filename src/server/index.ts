@@ -115,25 +115,62 @@ router.get<{ postId: string }, PositionResponse | { status: string; message: str
     res.json({
       latitude: Number(latitude),
       longitude: Number(longitude),
+      distance: 0,
+      score: 0,
     });
   }
 );
 
-router.post<{ postId: string; latitude: number; longitude: number }, DecrementResponse | { status: string; message: string }, unknown>(
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371e3; // Earth radius in meters
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // distance in meters
+}
+
+router.post<{ postId: string }, PositionResponse | { status: string; message: string }, { latitude: number; longitude: number }>(
   '/api/submit_dart_position',
-  async (_req, res): Promise<void> => {
+  async (req, res): Promise<void> => {
     const { postId } = context;
-    if (!postId) {
+    const {latitude, longitude} = req.body;
+
+    if (!postId || latitude == null || longitude == null) {
       res.status(400).json({
         status: 'error',
-        message: 'postId is required',
+        message: 'Parameter not provided',
       });
       return;
     }
 
-    res.status(200).json({
-      status: '',
-      message: '',
+    let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
+    const distance = haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 1000;
+    const score = Math.max(0, Math.round(3000 - distance));
+
+    res.json({
+      latitude: Number(og_latitude),
+      longitude: Number(og_longitude),
+      distance: distance,
+      score: score,
     });
   }
 );

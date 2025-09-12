@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
-import { showToast } from '@devvit/web/client';
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -89,6 +88,7 @@ const CreateGame: React.FC = () => {
     const fileData = await file!.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(fileData)));
 
+    // TODO: convert image server side to base64
     const body = JSON.stringify({
       image: base64,
       latitude,
