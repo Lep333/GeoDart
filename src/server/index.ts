@@ -10,7 +10,9 @@ import { promisify } from "util";
 const app = express();
 
 // Middleware for JSON body parsing
-app.use(express.json());
+// Allow larger payloads, e.g. 10 MB
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 // Middleware for URL-encoded body parsing
 app.use(express.urlencoded({ extended: true }));
 // Middleware for plain text body parsing
@@ -117,7 +119,7 @@ router.get<{ postId: string }, PositionResponse | { status: string; message: str
   }
 );
 
-router.post<{ postId: string, latitude: number, longitude: number }, DecrementResponse | { status: string; message: string }, unknown>(
+router.post<{ postId: string; latitude: number; longitude: number }, DecrementResponse | { status: string; message: string }, unknown>(
   '/api/submit_dart_position',
   async (_req, res): Promise<void> => {
     const { postId } = context;
@@ -186,6 +188,43 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
 });
 
 router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
+  const { image, latitude, longitude } = req.body;
+  console.log("neuer post bild ist hier am nuckeln", image);
+
+  const post = await createPost([image]);
+  redis.hSet(post.id, {
+    image: image,
+    latitude: String(latitude),
+    longitude: String(longitude),
+  });
+});
+
+router.post<{}, { status: string; message: string }, { image: string; latitude: number; longitude: number }>(
+  '/api/create_geo_dart',
+  async (req, res): Promise<void> => {
+    const { image, latitude, longitude } = req.body;
+
+    if (latitude == null || longitude == null || !image) {
+      res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
+      return;
+    }
+
+    const url = await media.upload({
+      url: `data:image/jpeg;base64,${image}`,
+      type: "image"
+    });
+
+    const post = await createPost([url.mediaUrl]);
+    redis.hSet(post.id, {
+      image: url.mediaUrl,
+      latitude: String(latitude),
+      longitude: String(longitude),
+    });
+    res.status(200).json({ status: 'ok', message: 'Geo Dart created' });
+  }
+);
+
+router.post('/api/create_geo_dart', async (req, res): Promise<void> => {
   const { image, latitude, longitude } = req.body;
   const response = await media.upload({
     url: image,
