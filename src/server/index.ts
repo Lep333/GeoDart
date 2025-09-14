@@ -6,6 +6,7 @@ import { media } from '@devvit/media';
 
 import { pipeline } from "stream";
 import { promisify } from "util";
+import { Console } from 'console';
 
 const app = express();
 
@@ -164,7 +165,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
 
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
     const distance = haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 1000;
-    const score = Math.max(0, Math.round(3000 - distance));
+    const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
 
     res.json({
       latitude: Number(og_latitude),
@@ -236,45 +237,25 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
   });
 });
 
-router.post<{}, { status: string; message: string }, { image: string; latitude: number; longitude: number }>(
+router.post<{}, { status: string; message: string }, { imageURL: string; latitude: number; longitude: number }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
-    const { image, latitude, longitude } = req.body;
+    const { imageURL, latitude, longitude } = req.body;
 
-    if (latitude == null || longitude == null || !image) {
+    if (latitude == null || longitude == null || !imageURL) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
       return;
     }
 
-    const url = await media.upload({
-      url: `data:image/jpeg;base64,${image}`,
-      type: "image"
-    });
-
-    const post = await createPost([url.mediaUrl]);
+    const post = await createPost([imageURL]);
     redis.hSet(post.id, {
-      image: url.mediaUrl,
+      image: imageURL,
       latitude: String(latitude),
       longitude: String(longitude),
     });
     res.status(200).json({ status: 'ok', message: 'Geo Dart created' });
   }
 );
-
-router.post('/api/create_geo_dart', async (req, res): Promise<void> => {
-  const { image, latitude, longitude } = req.body;
-  const response = await media.upload({
-    url: image,
-    type: 'image',
-  });
-
-  const post = await createPost([response.mediaUrl]);
-  redis.hSet(post.id, {
-    image: response.mediaUrl,
-    latitude: String(latitude),
-    longitude: String(longitude),
-  });
-});
 
 // promisify pipeline so we can await it
 const streamPipeline = promisify(pipeline);

@@ -16,10 +16,15 @@ const MapComponent: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
   const guess = useRef<L.Marker>(null);
   const [showScore, setShowScore] = useState(false);
+  const showScoreRef = useRef(showScore);
   const [score, setScore] = useState(0);
   const [distance, setDistance] = useState(0);
   let latitude: number;
   let longitude: number;
+
+  useEffect(() => {
+    showScoreRef.current = showScore;
+  }, [showScore]);
 
   useEffect(() => {
     // Ensure map is only initialized once
@@ -62,7 +67,7 @@ const MapComponent: React.FC = () => {
 
     // Add click handler
     map.on("click", (e) => {
-      if (showScore) {
+      if (showScoreRef.current) {
         return;
       }
       if (marker) {
@@ -100,7 +105,7 @@ const MapComponent: React.FC = () => {
       const lng = data.longitude;
       setDistance(data.distance);
       setScore(data.score);
-      console.log(`distance ${distance} score ${score}`);
+      console.log(`distance ${data.distance} score ${data.score}`);
       setShowScore(true);
 
       if (mapRef.current) {
@@ -142,8 +147,14 @@ const MapComponent: React.FC = () => {
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         { !showScore && <button
           className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
-          onClick={ fetchAndAddMarker }
+          onClick={ () => { fetchAndAddMarker() } }
         >Place Dart</button>}
+      </div>
+      <div className="fixed bottom-10 z-20 w-full flex justify-center">
+        { showScore && <button
+          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+          onClick={ () => { navigate("/menu") } }
+        >Next</button>}
       </div>
     </div>
   );

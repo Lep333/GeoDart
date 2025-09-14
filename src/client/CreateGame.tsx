@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { showForm } from '@devvit/web/client';
 
 // Fix default marker icon issue when bundling
 import iconUrl from "leaflet/dist/images/marker-icon.png";
@@ -14,7 +15,7 @@ const CreateGame: React.FC = () => {
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
   const location = useRef<L.Marker | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [imageURL, setURL] = useState<string | null>(null);
   let latitude: number;
   let longitude: number;
 
@@ -74,23 +75,14 @@ const CreateGame: React.FC = () => {
       };
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]!);
-    }
-  };
-
   async function createGame() {
     const latlng = location.current?.getLatLng();
     const latitude = latlng?.lat;
     const longitude = latlng?.lng;
 
-    const fileData = await file!.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(fileData)));
-
     // TODO: convert image server side to base64
     const body = JSON.stringify({
-      image: base64,
+      imageURL: imageURL,
       latitude,
       longitude,
     });
@@ -103,18 +95,40 @@ const CreateGame: React.FC = () => {
     navigate("/menu");
   }
 
+  async function uploadImage() {
+    const result = await showForm({
+      title: 'Picture Upload',
+      fields: [
+        {
+          type: 'image',
+          name: 'image',
+          label: 'Please upload an image.',
+          helpText: 'Heya!',
+          required: true,
+        },
+      ],
+    });
+    if (result.action == "SUBMITTED") {
+      const {image} = result.values;
+      setURL(image);
+    }
+  }
+
   return (
     <div className="flex flex-col">
-      <h1 className="bg-blue-500">Create Game</h1>
-      <div>
-        // TODO: upload on phones not working?
-        <label className="bg-blue-500 border-4 border-indigo-500" htmlFor="image_input">Image</label>
-        <input className="bg-blue-500" type="file" id="image_input" onChange={handleFileChange} name="image_input" accept="image/png, image/jpeg" />
+      <div className="z-20 w-full flex justify-center">
+        <h1 className="bg-blue-500 text-xl text-white">Create Game</h1>
+      </div>
+      <div className="fixed top-10 z-20 w-full flex justify-center">
+        <button
+          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+          onClick={() => { uploadImage() }}>Upload Image
+        </button>
       </div>
       <div
         id="map"
         className="z-10"
-        style={{ height: "90vh", width: "100%" }}
+        style={{ height: "100vh", width: "100%" }}
       />
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         <button
