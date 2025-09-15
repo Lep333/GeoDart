@@ -7,8 +7,8 @@ const Gallery: React.FC = () => {
 
   return (
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
-      <img src={`${gallery}`} alt="Where is this?" />
-      <button className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/map")}>Lets guess...</button>
+      <img className="h-screen w-full object-cover" src={`${gallery}`} alt="Where is this?" />
+      <button className="fixed bottom-10 rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/map")}>Lets guess...</button>
     </div>
   );
 };

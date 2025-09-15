@@ -21,7 +21,11 @@ const CreateGame: React.FC = () => {
 
   useEffect(() => {
     // Ensure map is only initialized once
-    const map = L.map("map").setView([20, 0], 2);
+    const map = L.map("map", {
+      zoomControl: false,   // remove + / - buttons
+      scrollWheelZoom: true, // allow zoom via mouse wheel
+      touchZoom: true,   
+    }).setView([20, 0], 2);
     mapRef.current = map;
 
     L.TileLayer.include({
@@ -80,7 +84,6 @@ const CreateGame: React.FC = () => {
     const latitude = latlng?.lat;
     const longitude = latlng?.lng;
 
-    // TODO: convert image server side to base64
     const body = JSON.stringify({
       imageURL: imageURL,
       latitude,
@@ -103,7 +106,7 @@ const CreateGame: React.FC = () => {
           type: 'image',
           name: 'image',
           label: 'Please upload an image.',
-          helpText: 'Heya!',
+          helpText: 'Please upload an image, where redditors should guess the location.',
           required: true,
         },
       ],

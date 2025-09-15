@@ -164,7 +164,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     }
 
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
-    const distance = haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 1000;
+    const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
     const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
 
     res.json({

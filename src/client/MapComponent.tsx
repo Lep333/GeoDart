@@ -28,7 +28,11 @@ const MapComponent: React.FC = () => {
 
   useEffect(() => {
     // Ensure map is only initialized once
-    const map = L.map("map").setView([20, 0], 2);
+    const map = L.map("map", {
+      zoomControl: false,   // remove + / - buttons
+      scrollWheelZoom: true, // allow zoom via mouse wheel
+      touchZoom: true,   
+    }).setView([20, 0], 2);
     mapRef.current = map;
 
     L.TileLayer.include({
@@ -124,26 +128,23 @@ const MapComponent: React.FC = () => {
     }
   }
 
-  function Scoreboard({show}: {show: boolean}) {
-    if (!show) {
-      return null;
-    }
-    return (
-      <div>
-        <div>{`Score: ${score}`}</div>
-        <div>{`Distance: ${distance}`}</div>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <Scoreboard show={showScore} />
       <div
         id="map"
         className="z-10"
         style={{ height: "100vh", width: "100%" }}
       />
+      { showScore && <div className="fixed top-22 z-20 w-full flex justify-center">
+        <div className="rounded-md bg-blue-500 px-4 py-2 text-3xl font-bold text-white opacity-85 focus:outline-none">
+          {`${score} / 3000 Points`}
+        </div>
+      </div> }
+      { showScore && <div className="fixed bottom-25 z-20 w-full flex justify-center">
+        <div className="rounded-md bg-blue-500 px-4 py-2 text-lg font-bold text-white opacity-85 focus:outline-none">
+          {`Distance: ${distance} km`}
+        </div>
+      </div> }
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         { !showScore && <button
           className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"

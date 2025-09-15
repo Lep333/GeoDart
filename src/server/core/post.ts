@@ -10,7 +10,7 @@ export const createPost = async (imageUrls: Array<string>) => {
     splash: {
       appDisplayName: 'Find me if you can...',
       backgroundUri: imageUrls[0] ?? "no-img",
-      buttonLabel: 'Lets try',
+      buttonLabel: 'Find Location',
     },
     subredditName: subredditName,
     runAs: 'USER',
