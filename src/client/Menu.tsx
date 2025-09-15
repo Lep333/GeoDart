@@ -1,7 +1,31 @@
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Menu: React.FC = () => {
   const navigate = useNavigate();
+  const [hasPlayed, setHasPlayed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkIfPlayed() {
+      const resp = await fetch('/api/already_played');
+      if (resp.ok && !resp.body) {
+        setHasPlayed(false);
+      } else {
+        setHasPlayed(true);
+      }
+    }
+
+    checkIfPlayed();
+  }, []);
+
+  if (hasPlayed) {
+    return (
+      <div className="p-4">
+        <h1 className="text-xl font-bold mb-2">Leaderboard</h1>
+        {/* Render leaderboard here */}
+      </div>
+    );
+  }
 
   return (
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">

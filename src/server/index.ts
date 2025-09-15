@@ -6,7 +6,6 @@ import { media } from '@devvit/media';
 
 import { pipeline } from "stream";
 import { promisify } from "util";
-import { Console } from 'console';
 
 const app = express();
 
@@ -100,6 +99,32 @@ router.post<{ postId: string }, DecrementResponse | { status: string; message: s
   }
 );
 
+router.get<{ postId: string }, {} | PositionResponse | { status: string; message: string }, unknown>(
+  '/api/already_played',
+  async (_req, res): Promise<void> => {
+    const { postId } = context;
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'postId is required',
+      });
+      return;
+    }
+
+    const userId = (await reddit.getCurrentUser())!.id;
+    const resp = (await redis.hGet(postId, userId))?.split(";");
+    if (resp) {
+      const [latitude, longitude, distance, score] = resp;
+      res.json({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        distance: Number(distance),
+        score: Number(score),
+      });
+    }
+  }
+);
+
 router.get<{ postId: string }, PositionResponse | { status: string; message: string }, unknown>(
   '/api/og_position',
   async (_req, res): Promise<void> => {
@@ -166,6 +191,11 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
     const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
     const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
+    const userId = (await reddit.getCurrentUser())!.id;
+
+    redis.hSet(postId, {
+      [userId]: `${latitude};${longitude};${distance};${score}`,
+    });
 
     res.json({
       latitude: Number(og_latitude),
@@ -229,7 +259,7 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
   const { image, latitude, longitude } = req.body;
   console.log("neuer post bild ist hier am nuckeln", image);
 
-  const post = await createPost([image]);
+  const post = await createPost("", [image]);
   redis.hSet(post.id, {
     image: image,
     latitude: String(latitude),
@@ -237,17 +267,22 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
   });
 });
 
-router.post<{}, { status: string; message: string }, { imageURL: string; latitude: number; longitude: number }>(
+router.post<{}, { status: string; message: string }, { imageURL: string; splashImage: string; latitude: number; longitude: number }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
-    const { imageURL, latitude, longitude } = req.body;
-
+    const { imageURL, splashImage, latitude, longitude } = req.body;
+    
     if (latitude == null || longitude == null || !imageURL) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
       return;
     }
 
-    const post = await createPost([imageURL]);
+    const splashImageURL = await media.upload({
+      url: splashImage,
+      type: "image",
+    });
+
+    const post = await createPost(splashImageURL.mediaUrl, [splashImageURL.mediaUrl, imageURL]);
     redis.hSet(post.id, {
       image: imageURL,
       latitude: String(latitude),
