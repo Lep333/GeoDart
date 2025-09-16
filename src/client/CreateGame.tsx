@@ -9,6 +9,7 @@ import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
 import { useCounter } from './hooks/useCounter';
+import { showToast } from '@devvit/web/client';
 
 const CreateGame: React.FC = () => {
   const navigate = useNavigate();
@@ -16,8 +17,8 @@ const CreateGame: React.FC = () => {
   const mapRef = useRef<L.Map | null>(null);
   const location = useRef<L.Marker | null>(null);
   const [imageURL, setURL] = useState<string | null>(null);
-  let latitude: number;
-  let longitude: number;
+  let [latitude, setLatitude] = useState<number | null>(null);
+  let [longitude, setLongitude] = useState<number | null>(null);
 
   useEffect(() => {
     // Ensure map is only initialized once
@@ -64,13 +65,13 @@ const CreateGame: React.FC = () => {
 
     // Add click handler
     map.on("click", (e) => {
-      if (marker) {
-        map.removeLayer(marker);
+      if (location.current) {
+        map.removeLayer(location.current);
       }
       marker = L.marker(e.latlng).addTo(map);
       location.current = marker;
-      latitude = e.latlng.lat;
-      longitude = e.latlng.lng;
+      setLatitude(e.latlng.lat);
+      setLongitude(e.latlng.lng);
     });
     map.addEventListener
       // Cleanup on unmount
@@ -78,6 +79,19 @@ const CreateGame: React.FC = () => {
         map.remove();
       };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (location.current) {
+      map.removeLayer(location.current);
+    }
+    if (!latitude || !longitude) return;
+
+    location.current = L.marker([latitude, longitude]).addTo(map);
+    map.setView([latitude, longitude], map.getZoom());
+  }, [latitude, longitude]);
 
   function loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -134,25 +148,26 @@ const CreateGame: React.FC = () => {
   }
 
   async function createGame() {
-    const latlng = location.current?.getLatLng();
-    const latitude = latlng?.lat;
-    const longitude = latlng?.lng;
-
     const base64 = await getBlurredBase64(imageURL!);
 
     const body = JSON.stringify({
       imageURL: imageURL,
       splashImage: base64,
-      latitude,
-      longitude,
+      latitude: latitude,
+      longitude: longitude,
     });
 
-    fetch('/api/create_geo_dart', {
+    const resp = await fetch('/api/create_geo_dart', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: body,
     });
-    // TODO: navigate to new post and show toast
+    if (resp.ok) {
+      showToast('Geo Dart created successfully!');
+    } else {
+      showToast('An error occured while creating Geo Dart :(');
+    }
+    // TODO: navigate to new post
     navigate("/menu");
   }
 
@@ -176,22 +191,35 @@ const CreateGame: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col">
-      <canvas id="canvas"></canvas>
+    <div className="grid grid-cols-1">
+      <canvas id="canvas" hidden></canvas>
       <div className="z-20 w-full flex justify-center">
-        <h1 className="bg-blue-500 text-xl text-white">Create Game</h1>
+        <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
+        <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white">Create Game</h1>
       </div>
-      <div className="fixed top-10 z-20 w-full flex justify-center">
-        <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
-          onClick={() => { uploadImage() }}>Upload Image
-        </button>
+      <div className="flex flex-col justify-center rounded-md z-20 justify-center border-2 border-slate-500 my-2 mx-2">
+        <div className="px-2 font-sans">Upload image(s) redditors shall find.</div>
+        <div className="flex justify-center">
+          <button
+            className="rounded-md bg-blue-500 px-4 py-2 my-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+            onClick={() => { uploadImage() }}>Upload Image
+          </button>
+        </div>
       </div>
-      <div
-        id="map"
-        className="z-10"
-        style={{ height: "100vh", width: "100%" }}
-      />
+      <div className="rounded-md justify-center border-2 border-slate-500 mx-2">
+        <div className="px-2 font-sans">Select location on the map or enter coordinates.</div>
+        <div className="grid grid-cols-3 px-2 my-2">
+          <label className="col-span-1" htmlFor="latitude">Latitude:</label>
+          <input className="col-span-2 px-2" type="text" name="latitude" value={latitude!} onChange={(e) => setLatitude(parseFloat(e.target.value))}/>
+          <label className="col-span-1" htmlFor="longitude">Longitude:</label>
+          <input className="col-span-2 px-2" type="text" name="longitude" value={longitude!} onChange={(e) => setLongitude(parseFloat(e.target.value))}/>
+        </div>
+        <div
+          id="map"
+          className="z-10"
+          style={{ height: "50vh", width: "100%" }}
+        />
+      </div>
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         <button
           className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
