@@ -26,3 +26,13 @@ export type PositionResponse = {
   distance: number;
   score: number;
 };
+
+export type LeaderboardResponse = {
+  leaderboard: Leaderboard[];
+}
+
+export type Leaderboard = {
+  member?: string;
+  score?: number;
+  rank: number;
+}

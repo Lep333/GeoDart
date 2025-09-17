@@ -1,5 +1,5 @@
 import express from 'express';
-import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse } from '../shared/types/api';
+import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse, LeaderboardResponse, Leaderboard } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { media } from '@devvit/media';
@@ -99,7 +99,39 @@ router.post<{ postId: string }, DecrementResponse | { status: string; message: s
   }
 );
 
-router.get<{ postId: string }, {} | PositionResponse | { status: string; message: string }, unknown>(
+router.get<{ postId: string }, LeaderboardResponse | { status: string; message: string }, unknown>(
+  '/api/leaderboard',
+  async (_req, res): Promise<void> => {
+    const { postId } = context;
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'postId is required',
+      });
+      return;
+    }
+
+    const userName = (await reddit.getCurrentUser())!.username;
+    //const resp = (await redis.hGet(postId, userId))?.split(";");
+    const timesPlayed = await redis.zCard(`${postId}_leaderboard`);
+    console.log("times played: ", timesPlayed);
+    const placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
+    console.log("place from last; ", placeFromLast);
+    if (!placeFromLast || timesPlayed - placeFromLast < 12) {
+      let data = await redis.zRange(`${postId}_leaderboard`, Math.max(timesPlayed - 12, 0), timesPlayed, {by: 'rank'});
+      data = data.map((el) => ({...el, rank: 1}));
+      let newData: Leaderboard[] = [];
+      for (let i = Math.min(timesPlayed - 1, 11); i >= 0; i--) {
+        newData.push({...data[i], rank: i + 1});
+      }
+      res.json({leaderboard: newData});
+      return;
+    }
+    const place = timesPlayed - placeFromLast;
+  }
+);
+
+router.get<{ postId: string }, { already_played: boolean } | PositionResponse | { status: string; message: string }, unknown>(
   '/api/already_played',
   async (_req, res): Promise<void> => {
     const { postId } = context;
@@ -113,13 +145,14 @@ router.get<{ postId: string }, {} | PositionResponse | { status: string; message
 
     const userId = (await reddit.getCurrentUser())!.id;
     const resp = (await redis.hGet(postId, userId))?.split(";");
+
     if (resp) {
-      const [latitude, longitude, distance, score] = resp;
       res.json({
-        latitude: Number(latitude),
-        longitude: Number(longitude),
-        distance: Number(distance),
-        score: Number(score),
+        already_played: true,
+      });
+    } else {
+      res.status(200).json({
+        already_played: false,
       });
     }
   }
@@ -191,11 +224,16 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
     const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
     const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
-    const userId = (await reddit.getCurrentUser())!.id;
+    const user = await reddit.getCurrentUser();
+    const userId = user!.id;
 
     redis.hSet(postId, {
       [userId]: `${latitude};${longitude};${distance};${score}`,
     });
+
+    redis.zAdd(`${postId}_leaderboard`, 
+      {member: user!.username, score: score},
+    );
 
     res.json({
       latitude: Number(og_latitude),
@@ -272,6 +310,7 @@ router.post<{}, { status: string; message: string }, { imageURL: string; splashI
   async (req, res): Promise<void> => {
     const { imageURL, splashImage, latitude, longitude } = req.body;
     
+    console.log("trying to create game");
     if (latitude == null || longitude == null || !imageURL) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
       return;

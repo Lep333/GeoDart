@@ -3,6 +3,7 @@ import Gallery from "./Gallery";
 import MapComponent from "./MapComponent";
 import Menu from "./Menu";
 import CreateGame from "./CreateGame";
+import Leaderboard from "./Leaderboard";
 
 function RedirectIndex() {
   const location = useLocation();
@@ -18,7 +19,8 @@ export const App = () => {
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/map" element={<MapComponent />} />
         <Route path="/menu" element={<Menu />} />
-        <Route path="/create_game" element={<CreateGame/>} />
+        <Route path="/create_game" element={<CreateGame />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="*" element={<RedirectIndex />} />
       </Routes>
     </BrowserRouter>

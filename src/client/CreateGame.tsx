@@ -193,15 +193,15 @@ const CreateGame: React.FC = () => {
   return (
     <div className="grid grid-cols-1">
       <canvas id="canvas" hidden></canvas>
-      <div className="z-20 w-full flex justify-center">
-        <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
-        <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white">Create Game</h1>
+      <div className="my-4 z-20 w-full flex justify-center">
+        <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2" onClick={() => { navigate("/menu") }}>Back</button>
+        <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2">Create Game</h1>
       </div>
       <div className="flex flex-col justify-center rounded-md z-20 justify-center border-2 border-slate-500 my-2 mx-2">
         <div className="px-2 font-sans">Upload image(s) redditors shall find.</div>
         <div className="flex justify-center">
           <button
-            className="rounded-md bg-blue-500 px-4 py-2 my-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+            className="rounded-md bg-blue-500 px-4 py-2 my-2 text-sm font-semibold opacity-100 focus:outline-none"
             onClick={() => { uploadImage() }}>Upload Image
           </button>
         </div>
@@ -222,7 +222,7 @@ const CreateGame: React.FC = () => {
       </div>
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold opacity-100 focus:outline-none"
           onClick={ () => createGame() }
         >Create Game</button>
       </div>

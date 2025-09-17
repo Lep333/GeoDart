@@ -114,7 +114,6 @@ const MapComponent: React.FC = () => {
 
       if (mapRef.current) {
         const marker = L.marker([lat, lng]).addTo(mapRef.current);
-        marker.bindPopup(`Lat: ${lat}, Lng: ${lng}`);
 
         // Optional: pan to new marker
         const bounds = L.latLngBounds([
