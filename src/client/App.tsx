@@ -4,6 +4,7 @@ import MapComponent from "./MapComponent";
 import Menu from "./Menu";
 import CreateGame from "./CreateGame";
 import Leaderboard from "./Leaderboard";
+import { TimerProvider } from "./TimerContext";
 
 function RedirectIndex() {
   const location = useLocation();
@@ -13,16 +14,18 @@ function RedirectIndex() {
 
 export const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Menu />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/map" element={<MapComponent />} />
-        <Route path="/menu" element={<Menu />} />
-        <Route path="/create_game" element={<CreateGame />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="*" element={<RedirectIndex />} />
-      </Routes>
-    </BrowserRouter>
+    <TimerProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Menu />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/map" element={<MapComponent />} />
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/create_game" element={<CreateGame />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="*" element={<RedirectIndex />} />
+        </Routes>
+      </BrowserRouter>
+    </TimerProvider>
   );
 };

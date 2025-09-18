@@ -6,6 +6,8 @@ import { media } from '@devvit/media';
 
 import { pipeline } from "stream";
 import { promisify } from "util";
+import { buffer } from 'stream/consumers';
+import { time } from 'console';
 
 const app = express();
 
@@ -158,6 +160,29 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
   }
 );
 
+router.post<{ postId: string }, { seconds: number } | { status: string; message: string }, unknown>(
+  '/api/submission_timestamp',
+  async (_req, res): Promise<void> => {
+    const { postId } = context;
+    const playTime = 60;
+    const bufferTimer = 15;
+
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'postId is required',
+      });
+      return;
+    }
+
+    const userId = (await reddit.getCurrentUser())!.id;
+    const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
+    redis.hSet(postId, {[userId]: `;;;;${timestamp}`});
+
+    res.json({ seconds: playTime });
+  }
+);
+
 router.get<{ postId: string }, PositionResponse | { status: string; message: string }, unknown>(
   '/api/og_position',
   async (_req, res): Promise<void> => {
@@ -213,7 +238,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     const { postId } = context;
     const {latitude, longitude} = req.body;
 
-    if (!postId || latitude == null || longitude == null) {
+    if (!postId) {
       res.status(400).json({
         status: 'error',
         message: 'Parameter not provided',
@@ -221,14 +246,42 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       return;
     }
 
-    let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
-    const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
-    const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
     const user = await reddit.getCurrentUser();
     const userId = user!.id;
+    const [, , , , timestamp] = (await redis.hGet(postId, userId))?.split(";") ?? [];
+    let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
+    
+    if (latitude == null || longitude == null) {
+      res.status(200);
+      redis.hSet(postId, {
+        [userId]: `${latitude};${longitude};${0};${0};${timestamp}`,
+      });
+
+      res.json({
+        latitude: Number(og_latitude),
+        longitude: Number(og_longitude),
+        distance: 0,
+        score: 0,
+      });
+      return;
+    }
+
+    const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
+    const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
+    
+    if (Date.now() > Number(timestamp)) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Submitted after deadline :(',
+      });
+      redis.hSet(postId, {
+        [userId]: `${latitude};${longitude};${distance};${0};${timestamp}`,
+      });
+      return;
+    }
 
     redis.hSet(postId, {
-      [userId]: `${latitude};${longitude};${distance};${score}`,
+      [userId]: `${latitude};${longitude};${distance};${score};${timestamp}`,
     });
 
     redis.zAdd(`${postId}_leaderboard`, 

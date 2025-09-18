@@ -6,9 +6,10 @@ import "leaflet/dist/leaflet.css";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
+import { useTimer } from "./TimerContext";
 
 const MapComponent: React.FC = () => {
   const navigate = useNavigate();
@@ -21,7 +22,9 @@ const MapComponent: React.FC = () => {
   const [distance, setDistance] = useState(0);
   let latitude: number;
   let longitude: number;
-
+  const { time } = useTimer();
+  const location = useLocation();
+  
   useEffect(() => {
     showScoreRef.current = showScore;
   }, [showScore]);
@@ -89,13 +92,19 @@ const MapComponent: React.FC = () => {
       };
   }, []);
 
+  useEffect(() => {
+    if (time === 0) {
+      fetchAndAddMarker();
+    }
+  }, [time]);
+
   async function fetchAndAddMarker() {
     try {
       const latitude = guess.current?.getLatLng().lat;
       const longitude = guess.current?.getLatLng().lng;
       const body = JSON.stringify({
-        latitude: latitude,
-        longitude: longitude,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
       });
       const response = await fetch('/api/submit_dart_position', {
         method: "POST",
@@ -115,7 +124,6 @@ const MapComponent: React.FC = () => {
       if (mapRef.current) {
         const marker = L.marker([lat, lng]).addTo(mapRef.current);
 
-        // Optional: pan to new marker
         const bounds = L.latLngBounds([
           guess.current!.getLatLng(),
           marker!.getLatLng(),
@@ -129,6 +137,9 @@ const MapComponent: React.FC = () => {
 
   return (
     <div>
+      { !showScore && <div 
+        className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">
+        { time }</div> }
       <div
         id="map"
         className="z-10"
