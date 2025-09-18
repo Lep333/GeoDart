@@ -39,6 +39,7 @@ const Gallery: React.FC = () => {
       const resp = await fetch('/api/submission_timestamp', {
         method: "POST",
       });
+      
       if (resp.ok) {
         const data = await resp.json();
 
@@ -48,6 +49,8 @@ const Gallery: React.FC = () => {
       // TODO: else go back to menu?
     }
 
+    const img = new Image();
+    img.src = gallery;
     submitTimestamp();
   }, []);
 
@@ -68,7 +71,6 @@ const Gallery: React.FC = () => {
       <img
         ref={imgRef}
         src={gallery}
-        alt="Where is this?"
         className="max-w-none max-h-none"
       />
       {/* Fixed button overlay */}

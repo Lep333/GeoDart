@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { showForm } from '@devvit/web/client';
+import { navigateTo, showForm } from '@devvit/web/client';
 import fx from 'glfx';
 // Fix default marker icon issue when bundling
 import iconUrl from "leaflet/dist/images/marker-icon.png";
@@ -164,6 +164,8 @@ const CreateGame: React.FC = () => {
     });
     if (resp.ok) {
       showToast('Geo Dart created successfully!');
+      const { url } = await resp.json();
+      navigateTo(url);
     } else {
       showToast('An error occured while creating Geo Dart :(');
     }

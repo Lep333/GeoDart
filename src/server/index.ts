@@ -250,7 +250,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     const userId = user!.id;
     const [, , , , timestamp] = (await redis.hGet(postId, userId))?.split(";") ?? [];
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
-    
+
     if (latitude == null || longitude == null) {
       res.status(200);
       redis.hSet(postId, {
@@ -358,7 +358,7 @@ router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
   });
 });
 
-router.post<{}, { status: string; message: string }, { imageURL: string; splashImage: string; latitude: number; longitude: number }>(
+router.post<{}, { status: string; url: string } | { status: string; message: string }, { imageURL: string; splashImage: string; latitude: number; longitude: number }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
     const { imageURL, splashImage, latitude, longitude } = req.body;
@@ -380,7 +380,8 @@ router.post<{}, { status: string; message: string }, { imageURL: string; splashI
       latitude: String(latitude),
       longitude: String(longitude),
     });
-    res.status(200).json({ status: 'ok', message: 'Geo Dart created' });
+
+    res.status(200).json({ status: 'ok', url: post.url });
   }
 );
 
