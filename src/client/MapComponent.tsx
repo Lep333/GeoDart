@@ -23,7 +23,6 @@ const MapComponent: React.FC = () => {
   let latitude: number;
   let longitude: number;
   const { time } = useTimer();
-  const location = useLocation();
   
   useEffect(() => {
     showScoreRef.current = showScore;
@@ -138,7 +137,7 @@ const MapComponent: React.FC = () => {
   return (
     <div>
       { !showScore && <div 
-        className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">
+        className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 opacity-85 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">
         { time }</div> }
       <div
         id="map"

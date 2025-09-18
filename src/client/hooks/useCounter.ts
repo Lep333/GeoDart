@@ -5,7 +5,9 @@ interface CounterState {
   count: number;
   username: string | null;
   loading: boolean;
-  gallery: string;
+  image0: string;
+  image1: string;
+  image2: string;
   latitude: number;
   longitude: number;
 }
@@ -15,7 +17,9 @@ export const useCounter = () => {
     count: 0,
     username: null,
     loading: true,
-    gallery: '',
+    image0: '',
+    image1: '',
+    image2: '',
     latitude: 0,
     longitude: 0
   });
@@ -33,9 +37,11 @@ export const useCounter = () => {
           count: data.count,
           username: data.username,
           loading: false,
-          gallery: data.gallery,
+          image0: data.image0,
+          image1: data.image1,
+          image2: data.image2,
           latitude: 0,
-          longitude: 0
+          longitude: 0,
         });
         setPostId(data.postId);
       } catch (err) {

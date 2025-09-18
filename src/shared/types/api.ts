@@ -1,11 +1,11 @@
-import { GalleryMedia } from "@devvit/web/server";
-
 export type InitResponse = {
   type: 'init';
   postId: string;
   count: number;
   username: string;
-  gallery: string;
+  image0: string;
+  image1: string;
+  image2: string;
 };
 
 export type IncrementResponse = {

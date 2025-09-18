@@ -37,18 +37,21 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
     }
 
     try {
-      const [count, username, media] = await Promise.all([
+      const [count, username] = await Promise.all([
         redis.get('count'),
         reddit.getCurrentUsername(),
-        redis.hGet(postId, 'image'),
       ]);
+      let [image0, image1, image2] = await redis.hMGet(postId, ['image0', 'image1', 'image2']);
+      console.log("images: ", image0, image1, image2);
 
       res.json({
         type: 'init',
         postId: postId,
         count: count ? parseInt(count) : 0,
         username: username ?? 'anonymous',
-        gallery: media ?? 'empty',
+        image0: image0 ?? '',
+        image1: image1 ?? '',
+        image2: image2 ?? '',
       });
     } catch (error) {
       console.error(`API Init Error for post ${postId}:`, error);
@@ -177,7 +180,7 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
 
     const userId = (await reddit.getCurrentUser())!.id;
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
-    redis.hSet(postId, {[userId]: `;;;;${timestamp}`});
+    // redis.hSet(postId, {[userId]: `;;;;${timestamp}`}); TODO: uncommented just for testing!
 
     res.json({ seconds: playTime });
   }
@@ -314,57 +317,14 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   }
 });
 
-router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
-  res.json({
-    showForm: {
-      name: 'submitForm',
-      form: {
-        fields: [
-          {
-            type: 'string',
-            name: 'title',
-            label: 'Title',
-          },
-          {
-            type: 'image',
-            name: 'image',
-            label: 'Image',
-          },
-          {
-            type: 'number',
-            name: 'latitude',
-            label: 'Latitude',
-          },
-          {
-            type: 'number',
-            name: 'longitude',
-            label: 'Longitude',
-          },
-        ],
-      },
-    },
-  });
-});
-
-router.post('/internal/menu/post-submit', async (req, res): Promise<void> => {
-  const { image, latitude, longitude } = req.body;
-  console.log("neuer post bild ist hier am nuckeln", image);
-
-  const post = await createPost("", [image]);
-  redis.hSet(post.id, {
-    image: image,
-    latitude: String(latitude),
-    longitude: String(longitude),
-  });
-});
-
-router.post<{}, { status: string; url: string } | { status: string; message: string }, { imageURL: string; splashImage: string; latitude: number; longitude: number }>(
+router.post<{}, { status: string; url: string } | { status: string; message: string }, 
+  { imageURL0: string; imageURL1: string; imageURL2: string; splashImage: string; latitude: number; longitude: number }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
-    const { imageURL, splashImage, latitude, longitude } = req.body;
+    const { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude } = req.body;
     
     console.log("trying to create game");
-    if (latitude == null || longitude == null || !imageURL) {
+    if (latitude == null || longitude == null || !imageURL0) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
       return;
     }
@@ -374,9 +334,11 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
       type: "image",
     });
 
-    const post = await createPost(splashImageURL.mediaUrl, [splashImageURL.mediaUrl, imageURL]);
+    const post = await createPost(splashImageURL.mediaUrl, [splashImageURL.mediaUrl, imageURL0, imageURL1, imageURL2]);
     redis.hSet(post.id, {
-      image: imageURL,
+      image0: imageURL0,
+      image1: imageURL1,
+      image2: imageURL2,
       latitude: String(latitude),
       longitude: String(longitude),
     });

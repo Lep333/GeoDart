@@ -16,7 +16,7 @@ const CreateGame: React.FC = () => {
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
   const location = useRef<L.Marker | null>(null);
-  const [imageURL, setURL] = useState<string | null>(null);
+  const [imageURLs, setURLs] = useState<string[]>([]);
   let [latitude, setLatitude] = useState<number | null>(null);
   let [longitude, setLongitude] = useState<number | null>(null);
 
@@ -148,10 +148,12 @@ const CreateGame: React.FC = () => {
   }
 
   async function createGame() {
-    const base64 = await getBlurredBase64(imageURL!);
+    const base64 = await getBlurredBase64(imageURLs[0]!);
 
     const body = JSON.stringify({
-      imageURL: imageURL,
+      imageURL0: imageURLs[0],
+      imageURL1: imageURLs[1],
+      imageURL2: imageURLs[2],
       splashImage: base64,
       latitude: latitude,
       longitude: longitude,
@@ -169,7 +171,6 @@ const CreateGame: React.FC = () => {
     } else {
       showToast('An error occured while creating Geo Dart :(');
     }
-    // TODO: navigate to new post
     navigate("/menu");
   }
 
@@ -179,16 +180,31 @@ const CreateGame: React.FC = () => {
       fields: [
         {
           type: 'image',
-          name: 'image',
+          name: 'image0',
           label: 'Please upload an image.',
           helpText: 'Please upload an image, where redditors should guess the location.',
           required: true,
         },
+        {
+          type: 'image',
+          name: 'image1',
+          label: 'This could be a clue or more information.',
+          helpText: 'This is a clue or more information to find the first picture',
+          required: false,
+        },
+        {
+          type: 'image',
+          name: 'image2',
+          label: 'This could be a clue or more information.',
+          helpText: 'This is a clue or more information to find the first picture',
+          required: false,
+        },
       ],
     });
     if (result.action == "SUBMITTED") {
-      const {image} = result.values;
-      setURL(image);
+      const {image0, image1, image2} = result.values;
+      let urls = [image0, image1 ?? "", image2 ?? ""];
+      setURLs(urls);
     }
   }
 

@@ -6,11 +6,13 @@ import { useTimer } from "./TimerContext";
 import EarthLoader from "./LoadingScreen";
 
 const Gallery: React.FC = () => {
-  const { gallery } = useCounter();
+  const { image0, image1, image2 } = useCounter();
   const navigate = useNavigate();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const { time, setTime } = useTimer();
   const [loading, setLoading] = useState<boolean>(true);
+  const [images, setImages] = useState<string[]>([]);
+  const [imageIndex, setImageIndex] = useState<number>(0);
 
   useEffect(() => {
     const el = imgRef.current;
@@ -32,7 +34,7 @@ const Gallery: React.FC = () => {
       // Listen with passive: false so preventDefault() works
       el!.addEventListener("wheel", onWheel, { passive: false });
     }
-  }, [loading]);
+  }, [loading, imageIndex]);
 
   useEffect(() => {
     async function submitTimestamp() {
@@ -48,11 +50,26 @@ const Gallery: React.FC = () => {
       }
       // TODO: else go back to menu?
     }
-
-    const img = new Image();
-    img.src = gallery;
     submitTimestamp();
   }, []);
+
+  useEffect(() => {
+    console.log(image0);
+    let images = [image0];
+    if (image1) {
+      images.push(image1);
+    }
+    if (image2) {
+      images.push(image2);
+    }
+    setImages(images);
+    console.log(images);
+
+    images.map((url) => {
+      const img = new Image();
+      img.src = url;
+    })
+  }, [image0, image1, image2]);
 
   useEffect(() => {
     if (time === 0) {
@@ -66,11 +83,41 @@ const Gallery: React.FC = () => {
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden">
-      <div className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">{ time }</div>
+      <div className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 opacity-85 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">{ time }</div>
+      <button
+        className="
+          fixed 
+          top-1/2 -translate-y-1/2
+          left-0                   
+          z-50
+          min-w-[2rem]
+          rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
+          text-white text-center font-semibold shadow-lg
+          opacity-85
+        "
+        onClick={() => { if (imageIndex > 0) setImageIndex(imageIndex - 1)}}
+        hidden={imageIndex==0? true: false}
+        ><img src="/chevron_backward_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" />
+      </button>
+      <button
+        className="
+          fixed 
+          top-1/2 -translate-y-1/2
+          right-0                   
+          z-50
+          min-w-[2rem]
+          rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
+          text-white text-center font-semibold shadow-lg
+          opacity-85
+        "
+        onClick={() => {if (imageIndex + 1 < images.length) setImageIndex(imageIndex + 1)} }
+        hidden={imageIndex==images.length-1? true: false}
+        ><img src="/chevron_right_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" />
+      </button>
       {/* Panzoom target */}
       <img
         ref={imgRef}
-        src={gallery}
+        src={images[imageIndex]}
         className="max-w-none max-h-none"
       />
       {/* Fixed button overlay */}
