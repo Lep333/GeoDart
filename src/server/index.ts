@@ -119,20 +119,38 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
     const userName = (await reddit.getCurrentUser())!.username;
     //const resp = (await redis.hGet(postId, userId))?.split(";");
     const timesPlayed = await redis.zCard(`${postId}_leaderboard`);
-    console.log("times played: ", timesPlayed);
     const placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
-    console.log("place from last; ", placeFromLast);
-    if (!placeFromLast || timesPlayed - placeFromLast < 12) {
-      let data = await redis.zRange(`${postId}_leaderboard`, Math.max(timesPlayed - 12, 0), timesPlayed, {by: 'rank'});
-      data = data.map((el) => ({...el, rank: 1}));
+    const ownRank = timesPlayed - placeFromLast!;
+    if (ownRank <= 1000) {
+      let data = await redis.zRange(`${postId}_leaderboard`, 0, timesPlayed - 1, {by: 'rank'});
       let newData: Leaderboard[] = [];
-      for (let i = Math.min(timesPlayed - 1, 11); i >= 0; i--) {
-        newData.push({...data[i], rank: i + 1});
-      }
+      let rank = 1;
+      data.reverse();
+      data.forEach((el) => {
+        if (el.member == userName) {
+          newData.push({...el, rank: rank, curr_user: true});
+        } else {
+          newData.push({...el, rank: rank, curr_user: false});
+        }
+        rank++;
+      });
       res.json({leaderboard: newData});
-      return;
+    } else {
+      const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
+      let data = await redis.zRange(`${postId}_leaderboard`, Math.max(ownRank - 50, 0), upperRank, {by: 'rank'});
+      let newData: Leaderboard[] = [];
+      let rank = timesPlayed - upperRank;
+      data.reverse();
+      data.forEach((el) => {
+        if (el.member == userName) {
+          newData.push({...el, rank: rank, curr_user: true});
+        } else {
+          newData.push({...el, rank: rank, curr_user: false});
+        }
+        rank++;
+      });
+      res.json({leaderboard: newData});
     }
-    const place = timesPlayed - placeFromLast;
   }
 );
 
@@ -287,8 +305,8 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       [userId]: `${latitude};${longitude};${distance};${score};${timestamp}`,
     });
 
-    redis.zAdd(`${postId}_leaderboard`, 
-      {member: user!.username, score: score},
+    redis.zAdd(`${postId}_leaderboard`,
+      {member: user!.username, score: 2991},
     );
 
     res.json({

@@ -91,6 +91,7 @@ const Gallery: React.FC = () => {
           left-0                   
           z-50
           min-w-[2rem]
+          h-1/7
           rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
           text-white text-center font-semibold shadow-lg
           opacity-85
@@ -105,6 +106,7 @@ const Gallery: React.FC = () => {
           top-1/2 -translate-y-1/2
           right-0                   
           z-50
+          h-1/7
           min-w-[2rem]
           rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
           text-white text-center font-semibold shadow-lg

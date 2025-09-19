@@ -17,24 +17,39 @@ const Leaderboard: React.FC = () => {
     getLeaderboard();
   }, []);
 
+  const userRef = useRef(null);
+
+  useEffect(() => {
+    if (userRef.current) {
+      userRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center", // center it vertically in the scroll area
+      });
+    }
+  }, [leaderboard]);
+
   return (
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
-      <div className="fixed top-25 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Leaderboard</div>
-      <div className="grid grid-cols-1 w-2/3">
-        <div className="grid grid-cols-3 rounded-md bg-blue-500 text-white px-2 py-1">
+      <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Leaderboard</div>
+      <div className="fixed top-25 grid grid-cols-1 w-2/3 h-2/3 overflow-y-auto">
+        <div className="grid grid-cols-[1fr_2fr_1fr] rounded-md bg-blue-500 text-white px-2 py-1 shadow-md">
             <div>Rank</div>
             <div>Name</div>
-            <div>Score</div>
+            <div className="text-right">Score</div>
         </div>
-        { leaderboard && leaderboard.leaderboard.map((el) => (
-            <div className="grid grid-cols-3 rounded-md bg-blue-500 text-white px-2 py-1 my-2">
+        { leaderboard && leaderboard.leaderboard.map((el, i) => (
+            <div
+            key={i}
+            ref={el.curr_user ? userRef : null}
+            className={ el.curr_user? "grid grid-cols-[1fr_2fr_1fr] rounded-md bg-violet-600 text-white px-2 py-1 mt-1 shadow-md"
+              :"grid grid-cols-[1fr_2fr_1fr] gap-1 rounded-md bg-blue-500 text-white px-2 py-1 mt-1 shadow-md"}>
                 <div>{el.rank}</div>
-                <div>{el.member}</div>
-                <div>{el.score}</div>
+                <div className="truncate">{el.member}</div>
+                <div className="text-right">{el.score}</div>
             </div>
         )) }
       </div>
-      <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/create_game")}>CREATE GAME</button>
+      <button className="fixed bottom-10 rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/create_game")}>CREATE GAME</button>
     </div>
   );
 };

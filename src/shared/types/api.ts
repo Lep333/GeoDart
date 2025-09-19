@@ -35,4 +35,5 @@ export type Leaderboard = {
   member?: string;
   score?: number;
   rank: number;
+  curr_user: boolean;
 }
