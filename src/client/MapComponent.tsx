@@ -156,15 +156,15 @@ const MapComponent: React.FC = () => {
       </div> }
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         { !showScore && <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
+          className="rounded-md bg-blue-500 px-6 py-3 text-white font-semibold shadow-lg"
           onClick={ () => { fetchAndAddMarker() } }
         >Place Dart</button>}
       </div>
       <div className="fixed bottom-10 z-20 w-full flex justify-center">
         { showScore && <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white opacity-100 focus:outline-none"
-          onClick={ () => { navigate("/menu") } }
-        >Next</button>}
+          className="rounded-md bg-blue-500 px-6 py-3 text-white font-semibold shadow-lg"
+          onClick={ () => { navigate("/leaderboard") } }
+        >Leaderboard</button>}
       </div>
     </div>
   );

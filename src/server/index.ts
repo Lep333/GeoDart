@@ -3,7 +3,7 @@ import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse, L
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { media } from '@devvit/media';
-
+import { Jimp } from "jimp";
 import { pipeline } from "stream";
 import { promisify } from "util";
 import { buffer } from 'stream/consumers';
@@ -42,7 +42,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         reddit.getCurrentUsername(),
       ]);
       let [image0, image1, image2] = await redis.hMGet(postId, ['image0', 'image1', 'image2']);
-      console.log("images: ", image0, image1, image2);
+      // console.log("images: ", image0, image1, image2);
 
       res.json({
         type: 'init',
@@ -119,6 +119,10 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
     const userName = (await reddit.getCurrentUser())!.username;
     //const resp = (await redis.hGet(postId, userId))?.split(";");
     const timesPlayed = await redis.zCard(`${postId}_leaderboard`);
+    if (!timesPlayed) {
+      res.json({leaderboard: []});
+      return;
+    }
     const placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
     const ownRank = timesPlayed - placeFromLast!;
     if (ownRank <= 1000) {
@@ -168,7 +172,12 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
 
     const userId = (await reddit.getCurrentUser())!.id;
     const resp = (await redis.hGet(postId, userId))?.split(";");
-
+    const author = await (await reddit.getPostById(postId)).getAuthor();
+    if (userId == author?.id) {
+      res.json({
+        already_played: true,
+      });
+    }
     if (resp) {
       res.json({
         already_played: true,
@@ -198,7 +207,7 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
 
     const userId = (await reddit.getCurrentUser())!.id;
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
-    // redis.hSet(postId, {[userId]: `;;;;${timestamp}`}); TODO: uncommented just for testing!
+    redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp}`});
 
     res.json({ seconds: playTime });
   }
@@ -335,24 +344,64 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   }
 });
 
+async function blurImageFromURL(url: string): Promise<string> {
+  try {
+    // Fetch image as array buffer
+    console.log("hey");
+    const res = await fetch(url);
+    console.log("i am here?");
+    // if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
+    console.log(res.status);
+    const arrayBuffer = await res.arrayBuffer();
+    console.log(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
+    console.log(buffer);
+    // Load into Jimp
+    const image = await Jimp.read(buffer);
+    image.blur(5);
+    console.log("hello?");
+    // Return Base64 data URL
+    const base64 = await new Promise<string>((resolve, reject) => {
+      image.getBase64("image/jpeg", (err, data) => {
+        if (err) reject(err);
+        else resolve(data); // data is a "data:image/jpeg;base64,..." string
+      });
+    });
+    return base64;
+  } catch (err) {
+    console.error("Error processing image:", err);
+    throw err;
+  }
+}
+
 router.post<{}, { status: string; url: string } | { status: string; message: string }, 
   { imageURL0: string; imageURL1: string; imageURL2: string; splashImage: string; latitude: number; longitude: number }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
     const { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude } = req.body;
     
-    console.log("trying to create game");
+    //console.log("trying to create game");
+    //console.log(imageURL0, imageURL1, imageURL2);
+
     if (latitude == null || longitude == null || !imageURL0) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
       return;
     }
 
-    const splashImageURL = await media.upload({
-      url: splashImage,
-      type: "image",
-    });
+    // Load the image
+    //const result = await blurImageFromURL(imageURL0);
+    //console.log(result);
 
-    const post = await createPost(splashImageURL.mediaUrl, [splashImageURL.mediaUrl, imageURL0, imageURL1, imageURL2]);
+    // const splashImageURL = await media.upload({
+    //   url: splashImage,
+    //   type: "image",
+    // });
+    // const splashImageURL = await media.upload({
+    //   url: `data:image/jpeg;base64,${result}`,
+    //   type: "image",
+    // });
+
+    const post = await createPost([imageURL0, imageURL1, imageURL2]);
     redis.hSet(post.id, {
       image0: imageURL0,
       image1: imageURL1,

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import { useCounter } from './hooks/useCounter';
 import panzoom from '@panzoom/panzoom';
@@ -127,7 +127,7 @@ const Gallery: React.FC = () => {
         className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 px-6 py-3 text-white font-semibold shadow-lg"
         onClick={() => navigate("/map")}
       >
-        Let’s guess...
+        Map
       </button>
     </div>
   );

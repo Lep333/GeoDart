@@ -1,6 +1,6 @@
 import { context, reddit } from '@devvit/web/server';
 
-export const createPost = async (splashURL: string, imageUrls: Array<string>) => {
+export const createPost = async (imageUrls: Array<string>) => {
   const { subredditName } = context;
   if (!subredditName) {
     throw new Error('subredditName is required');
@@ -9,7 +9,6 @@ export const createPost = async (splashURL: string, imageUrls: Array<string>) =>
   return await reddit.submitCustomPost({
     splash: {
       appDisplayName: 'Find me if you can...',
-      backgroundUri: splashURL ?? "no-img",
       buttonLabel: 'Find Location',
     },
     subredditName: subredditName,

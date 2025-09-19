@@ -148,13 +148,13 @@ const CreateGame: React.FC = () => {
   }
 
   async function createGame() {
-    const base64 = await getBlurredBase64(imageURLs[0]!);
+    // const base64 = await getBlurredBase64(imageURLs[0]!);
 
     const body = JSON.stringify({
       imageURL0: imageURLs[0],
       imageURL1: imageURLs[1],
       imageURL2: imageURLs[2],
-      splashImage: base64,
+      splashImage: "base64",
       latitude: latitude,
       longitude: longitude,
     });
@@ -203,7 +203,7 @@ const CreateGame: React.FC = () => {
     });
     if (result.action == "SUBMITTED") {
       const {image0, image1, image2} = result.values;
-      let urls = [image0, image1 ?? "", image2 ?? ""];
+      let urls = [image0 ?? "", image1 ?? "", image2 ?? ""];
       setURLs(urls);
     }
   }
@@ -215,8 +215,8 @@ const CreateGame: React.FC = () => {
         <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
         <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white">Create Game</h1>
       </div>
-      <div className="flex flex-col justify-center rounded-md z-20 justify-center border-2 border-slate-500 my-2 mx-2">
-        <div className="px-2 font-sans">Upload image(s) redditors shall find.</div>
+      <div className={`flex flex-col justify-center rounded-md z-20 justify-center border-2 ${imageURLs.length > 0? "border-lime-500" :"border-blue-500"} my-2 mx-2 shadow-md`}>
+        <div className="px-2 font-sans font-medium">Upload image(s) redditors shall find the location.</div>
         <div className="flex justify-center">
           <button
             className="rounded-md bg-blue-500 px-4 py-2 my-2 text-sm font-semibold opacity-100 focus:outline-none text-white"
@@ -224,23 +224,24 @@ const CreateGame: React.FC = () => {
           </button>
         </div>
       </div>
-      <div className="rounded-md justify-center border-2 border-slate-500 mx-2">
-        <div className="px-2 font-sans">Select location on the map or enter coordinates.</div>
-        <div className="grid grid-cols-3 px-2 my-2">
-          <label className="col-span-1" htmlFor="latitude">Latitude:</label>
-          <input className="col-span-2 px-2" type="text" name="latitude" value={latitude!} onChange={(e) => setLatitude(parseFloat(e.target.value))}/>
-          <label className="col-span-1" htmlFor="longitude">Longitude:</label>
-          <input className="col-span-2 px-2" type="text" name="longitude" value={longitude!} onChange={(e) => setLongitude(parseFloat(e.target.value))}/>
+      <div className={`rounded-md justify-center border-2 ${latitude && longitude? "border-lime-500" :"border-blue-500"} mx-2 shadow-md`}>
+        <div className="px-2 font-sans font-medium">Select location on the map or enter coordinates of the <span className="underline decoration-blue-500">first image.</span></div>
+        <div className="grid grid-cols-3 px-2 my-2 gap-1">
+          <label className="col-span-1 font-sans font-medium" htmlFor="latitude">Latitude:</label>
+          <input className="col-span-2 px-2 border border-blue-500 rounded-md font-sans font-medium" type="text" name="latitude" value={latitude!} onChange={(e) => setLatitude(parseFloat(e.target.value))}/>
+          <label className="col-span-1 font-sans font-medium" htmlFor="longitude">Longitude:</label>
+          <input className="col-span-2 px-2 border border-blue-500 rounded-md font-sans font-medium" type="text" name="longitude" value={longitude!} onChange={(e) => setLongitude(parseFloat(e.target.value))}/>
         </div>
         <div
           id="map"
           className="z-10"
-          style={{ height: "50vh", width: "100%" }}
+          style={{ height: "45vh", width: "100%" }}
         />
       </div>
-      <div className="fixed bottom-10 z-20 w-full flex justify-center">
+      <div className="z-20 fixed bottom-10 w-full flex justify-center">
         <button
-          className="rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold opacity-100 focus:outline-none text-white"
+          className="z-50 rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold opacity-100 focus:outline-none text-white disabled:border-gray-200 disabled:bg-gray-50 disabled:text-blue-500"
+          disabled={imageURLs.length == 0 || !latitude || !longitude}
           onClick={ () => createGame() }
         >Create Game</button>
       </div>
