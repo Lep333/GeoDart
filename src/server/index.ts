@@ -173,7 +173,7 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const userId = (await reddit.getCurrentUser())!.id;
     const resp = (await redis.hGet(postId, userId))?.split(";");
     const author = await (await reddit.getPostById(postId)).getAuthor();
-    if (userId == author?.id) {
+    if (userId == author?.id) { // TODO: undo
       res.json({
         already_played: true,
       });

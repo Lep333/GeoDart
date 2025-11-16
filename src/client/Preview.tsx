@@ -1,11 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
 import { requestExpandedMode } from '@devvit/web/client';
+import EarthLoader from "./LoadingScreen";
 
 const Preview: React.FC = () => {
+  const navigate = useNavigate();
   const { image0, image1, image2 } = useCounter();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [hasPlayed, setHasPlayed] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState<boolean | null>(true);
 
   useEffect(() => {
     console.log(image0);
@@ -25,21 +30,42 @@ const Preview: React.FC = () => {
     })
   }, [image0, image1, image2]);
 
-//   if (loading) {
-//       return (<EarthLoader />);
-//   }
+  useEffect(() => {
+    async function checkIfPlayed() {
+      const resp = await fetch('/api/already_played');
+      if (resp.ok) {
+        const { already_played } = await resp.json();
+        if (already_played) {
+          setHasPlayed(true);
+        } else {
+          setHasPlayed(false);
+        }
+      }
+      setLoading(false);
+    }
+
+    checkIfPlayed();
+  }, []);
+
+  if (loading) {
+    return (<EarthLoader />);
+  }
+
+  if (hasPlayed) {
+    navigate("/leaderboard");
+  }
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden">
-      <div className="fixed top-25 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white z-20">Geo Dart</div>
-      <div className="fixed top-50 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white z-20">Can you find the location?</div>
+      <div className="fixed top-20 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white z-20">Geo Dart</div>
+      <div className="fixed top-40 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white text-center z-20">Can you find the location?</div>
       <img
         ref={imgRef}
         src={images[0]}
         className="w-full h-full object-cover blur-sm"
       />
       <button
-        className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 px-6 py-3 text-white font-semibold shadow-lg z-20"
+        className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-xl px-4 py-2 text-white font-semibold shadow-lg z-20"
         onClick={async (event: React.MouseEvent<HTMLButtonElement>) => { 
             try {
               await requestExpandedMode(event.nativeEvent, 'game');
