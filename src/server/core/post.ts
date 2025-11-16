@@ -7,10 +7,6 @@ export const createPost = async (imageUrls: Array<string>) => {
   }
 
   return await reddit.submitCustomPost({
-    splash: {
-      appDisplayName: 'Find me if you can...',
-      buttonLabel: 'Find Location',
-    },
     subredditName: subredditName,
     runAs: 'USER',
     title: 'GEO DART',

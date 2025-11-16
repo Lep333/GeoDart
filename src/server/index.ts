@@ -315,7 +315,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     });
 
     redis.zAdd(`${postId}_leaderboard`,
-      {member: user!.username, score: 2991},
+      {member: user!.username, score: score},
     );
 
     res.json({

@@ -1,7 +1,9 @@
-import { Routes, Route, BrowserRouter, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, BrowserRouter, Navigate, useLocation, useNavigate } from "react-router-dom";
 import Gallery from "./Gallery";
 import MapComponent from "./MapComponent";
 import Menu from "./Menu";
+import Preview from "./Preview";
 import CreateGame from "./CreateGame";
 import Leaderboard from "./Leaderboard";
 import { TimerProvider } from "./TimerContext";
