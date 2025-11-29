@@ -126,7 +126,7 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
     const placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
     const ownRank = timesPlayed - placeFromLast!;
     if (ownRank <= 1000) {
-      let data = await redis.zRange(`${postId}_leaderboard`, 0, timesPlayed - 1, {by: 'rank'});
+      let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
       let newData: Leaderboard[] = [];
       let rank = 1;
       data.reverse();
@@ -173,7 +173,7 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const userId = (await reddit.getCurrentUser())!.id;
     const resp = (await redis.hGet(postId, userId))?.split(";");
     const author = await (await reddit.getPostById(postId)).getAuthor();
-    if (userId == author?.id) { // TODO: undo
+    if (userId == author?.id) {
       res.json({
         already_played: true,
       });
@@ -305,7 +305,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
         message: 'Submitted after deadline :(',
       });
       redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${distance};${0};${timestamp}`,
+        [userId]: `${latitude};${longitude};${distance};${0};${timestamp}`, // TODO: this is completly wrong?
       });
       return;
     }
@@ -324,6 +324,60 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       distance: distance,
       score: score,
     });
+  }
+);
+
+router.get<{ postId: string }, [string, string, string, string|undefined][] | { status: string; message: string }, { latitude: number; longitude: number }>(
+  '/api/get_submissions',
+  async (req, res): Promise<void> => {
+    const { postId } = context;
+
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Parameter not provided',
+      });
+      return;
+    }
+    let submissions: [string, string, string, string|undefined][] = []; 
+    // Scan and interate over all the fields within 'userInfo'
+    let latitude: string = "";
+    let longitude: string = "";
+    const hScanResponse = await redis.hScan(postId, 0);
+    const promises = hScanResponse.fieldValues.map(async (x) => {
+      if (x.field == "latitude") {
+        latitude = x.value;
+      }
+      if (x.field == "longitude") {
+        longitude = x.value;
+      }
+      if (latitude && longitude) {
+        let temp_lat = latitude;
+        let temp_long = longitude;
+        latitude = "";
+        longitude = "";
+        return (["", temp_lat, temp_long, ""]);
+      }
+      if (x.field.startsWith("t2_")) {
+        const redditorUser = await reddit.getUserById(x.field as `t2_${string}`);
+        const redditorName = String(redditorUser?.username);
+        const redditorAvatar = await redditorUser?.getSnoovatarUrl();
+        const values = x.value.split(";");
+        const lat = String(values[0]);
+        const long = String(values[1]);
+        return ([
+          redditorName,
+          lat,
+          long,
+          redditorAvatar
+        ]);
+      }
+      return null;
+    });
+    const results = (await Promise.all(promises)).filter(Boolean);
+    submissions.push(["", latitude, longitude, ""]);
+    console.log(submissions);
+    res.json(results);
   }
 );
 

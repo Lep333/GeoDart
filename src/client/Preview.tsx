@@ -62,7 +62,7 @@ const Preview: React.FC = () => {
       <img
         ref={imgRef}
         src={images[0]}
-        className="w-full h-full object-cover blur-sm"
+        className="w-full h-full object-cover"
       />
       <button
         className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-xl px-4 py-2 text-white font-semibold shadow-lg z-20"

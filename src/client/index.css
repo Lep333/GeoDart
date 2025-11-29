@@ -18,3 +18,101 @@ body {
   background-color: var(--bg-color);
   color: var(--text-color);
 }
+
+.text-label .label-content {
+  background: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+}
+
+.avatar-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.avatar-marker img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover; /* crops large images to fit */
+}
+
+.avatar-marker .username {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: bold;
+  color: black;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.leaflet-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  pointer-events: auto; /* so you can click the marker normally */
+  transform-origin: center bottom; /* useful if you scale on zoom */
+}
+
+/* Username shown above the avatar */
+.leaflet-avatar-username {
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 6px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.9);
+  color: #111;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+/* The circular image container (crop + round) */
+.leaflet-avatar-circle {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  overflow: hidden;
+  display: block;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  border: 2px solid white;
+  background: #eee;
+}
+
+/* The image itself — cover the box */
+.leaflet-avatar-circle img {
+  width: 140%;          /* ZOOM IN — increase this number for more zoom */
+  height: 140%;         /* ZOOM IN */
+  object-fit: cover;    /* fill the circle */
+  object-position: center top; /* shift focus upward toward the face */
+  transform: translate(0%, 0%); /* adjust centering after zoom */
+  display: block;
+}
+
+/* The pointy triangle under the avatar that marks the exact location */
+.leaflet-avatar-wrapper::after {
+  content: "";
+  position: absolute;
+  bottom: calc(var(--triangle-offset, -8px)); /* how far triangle protrudes */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: var(--triangle-size, 8px) solid transparent;
+  border-right: var(--triangle-size, 8px) solid transparent;
+  border-top: var(--triangle-size, 8px) solid rgba(255,255,255,0.95);
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+}
+
+/* make sure Leaflet's image wrapper doesn't override our sizes */
+.leaflet-div-icon {
+  background: transparent;
+  border: none;
+}

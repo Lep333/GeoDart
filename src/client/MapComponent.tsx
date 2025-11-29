@@ -11,6 +11,52 @@ import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
 
+function createAvatarIcon(
+  username: string,
+  avatarUrl: string | null,
+  avatarSize = 50
+): L.DivIcon {
+  const triangleSize = 8; // px (triangle height)
+  const usernameHeight = 18; // estimated px height (depends on font; adjust if needed)
+  const marginBetween = 6; // margin between username and avatar
+
+  // Total icon height: username + margin + avatar + triangle
+  const totalHeight = usernameHeight + marginBetween + avatarSize + triangleSize;
+  const totalWidth = avatarSize; // username should not exceed this ideally (white-space: nowrap)
+
+  // CSS variables inline so each icon can have its own size if you want
+  const styleVars = `
+    --avatar-size: ${avatarSize}px;
+    --triangle-size: ${triangleSize}px;
+    --triangle-offset: -${Math.round(triangleSize / 2)}px;
+  `;
+
+  // Escape values used in HTML? For simple cases this is fine; if username comes from user input,
+  // you may wish to sanitize/escape. We keep it minimal for readability.
+  const html = `
+    <div class="leaflet-avatar-wrapper" style="${styleVars}; width:${totalWidth}px;">
+      <div class="leaflet-avatar-username">${username}</div>
+      <div class="leaflet-avatar-circle">
+        ${
+          avatarUrl
+            ? `<img src="${avatarUrl}" class="leaflet-avatar-img" />`
+            : `<div class="leaflet-avatar-emoji">🌍</div>`
+        }
+      </div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: "", // keep empty (we use wrapper class in HTML). Still respects .leaflet-div-icon CSS.
+    iconSize: [totalWidth, totalHeight],
+    // iconAnchor should point to the tip of the triangle, which is at the bottom center.
+    // Set to [width/2, totalHeight - (triangleHalfAdjustment)]
+    iconAnchor: [Math.round(totalWidth / 2), Math.round(totalHeight - 1)],
+    popupAnchor: [0, -Math.round(totalHeight / 2)]
+  });
+}
+
 const MapComponent: React.FC = () => {
   const navigate = useNavigate();
   const { getOGLocation } =  useCounter();
@@ -23,7 +69,9 @@ const MapComponent: React.FC = () => {
   let latitude: number;
   let longitude: number;
   const { time } = useTimer();
-  
+  const location = useLocation();
+  const mode: string = location.state?.mode ?? "default";
+
   useEffect(() => {
     showScoreRef.current = showScore;
   }, [showScore]);
@@ -97,7 +145,17 @@ const MapComponent: React.FC = () => {
     }
   }, [time]);
 
+  useEffect(() => {
+    if (mode == "submission") {
+      setUsersSubmissions();
+    }
+  }, [mode]);
+
   async function fetchAndAddMarker() {
+    if (mode == "submission") {
+      return;
+    }
+
     try {
       const latitude = guess.current?.getLatLng().lat;
       const longitude = guess.current?.getLatLng().lng;
@@ -133,6 +191,59 @@ const MapComponent: React.FC = () => {
       console.error("Error fetching location:", err);
     }
   }
+
+  async function setUsersSubmissions() {
+    try {
+      if (mode == "submission") {
+        const res = await fetch('/api/get_submissions');
+        const players = await res.json();
+        for (const player of players) {
+          const userName = player[0];
+          const lat = Number(player[1]);
+          const long = Number(player[2]);
+          const avatarURL = player[3];
+          if (mapRef.current && userName == "") {
+            const marker = L.marker([lat, long]).addTo(mapRef.current);
+          } else if (mapRef.current && Number.isFinite(lat) && Number.isFinite(long)) {
+            const avatarHtml = `
+              <div class="avatar-marker">
+                <img src="${avatarURL}" alt="${userName}" />
+                <div class="username">${userName}</div>
+              </div>
+            `;
+            const markerIcon = createAvatarIcon(userName, avatarURL, 35);
+            const marker = L.marker([lat, long], {icon: markerIcon}).addTo(mapRef.current);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching location:", err);
+    }
+  }
+
+  if (mode == "submission") {
+    return (
+      <div>
+        <div
+          id="map"
+          className="z-10"
+          style={{ height: "100vh", width: "100%" }}
+        />
+        <div className="fixed bottom-25 z-20 w-full flex justify-center">
+          <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
+            onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+              navigate("/leaderboard");
+            }}>Leaderboard</button>
+        </div>
+        <div className="fixed bottom-10 z-20 w-full flex justify-center">
+          <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
+            onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+              navigate("/create_game");
+            }}>Create Game</button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div>
