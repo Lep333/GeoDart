@@ -123,8 +123,9 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
       res.json({leaderboard: []});
       return;
     }
-    const placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
-    const ownRank = timesPlayed - placeFromLast!;
+    let placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
+    placeFromLast = placeFromLast? placeFromLast: 0;
+    const ownRank = timesPlayed - placeFromLast;
     if (ownRank <= 1000) {
       let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
       let newData: Leaderboard[] = [];
@@ -207,7 +208,7 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
 
     const userId = (await reddit.getCurrentUser())!.id;
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
-    redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp}`});
+    await redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp}`});
 
     res.json({ seconds: playTime });
   }
@@ -283,7 +284,7 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
 
     if (latitude == null || longitude == null) {
       res.status(200);
-      redis.hSet(postId, {
+      await redis.hSet(postId, {
         [userId]: `${latitude};${longitude};${0};${0};${timestamp}`,
       });
 
@@ -304,17 +305,17 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
         status: 'error',
         message: 'Submitted after deadline :(',
       });
-      redis.hSet(postId, {
+      await redis.hSet(postId, {
         [userId]: `${latitude};${longitude};${distance};${0};${timestamp}`, // TODO: this is completly wrong?
       });
       return;
     }
 
-    redis.hSet(postId, {
+    await redis.hSet(postId, {
       [userId]: `${latitude};${longitude};${distance};${score};${timestamp}`,
     });
 
-    redis.zAdd(`${postId}_leaderboard`,
+    await redis.zAdd(`${postId}_leaderboard`,
       {member: user!.username, score: score},
     );
 
@@ -327,11 +328,11 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
   }
 );
 
-router.get<{ postId: string }, [string, string, string, string|undefined][] | { status: string; message: string }, { latitude: number; longitude: number }>(
+router.get<{ postId: string }, [string, string, string, string|undefined, boolean][] | { status: string; message: string }, { latitude: number; longitude: number }>(
   '/api/get_submissions',
   async (req, res): Promise<void> => {
     const { postId } = context;
-
+    const userName = (await reddit.getCurrentUser())!.username;
     if (!postId) {
       res.status(400).json({
         status: 'error',
@@ -339,7 +340,6 @@ router.get<{ postId: string }, [string, string, string, string|undefined][] | { 
       });
       return;
     }
-    let submissions: [string, string, string, string|undefined][] = []; 
     // Scan and interate over all the fields within 'userInfo'
     let latitude: string = "";
     let longitude: string = "";
@@ -356,7 +356,7 @@ router.get<{ postId: string }, [string, string, string, string|undefined][] | { 
         let temp_long = longitude;
         latitude = "";
         longitude = "";
-        return (["", temp_lat, temp_long, ""]);
+        return (["", temp_lat, temp_long, "", false]);
       }
       if (x.field.startsWith("t2_")) {
         const redditorUser = await reddit.getUserById(x.field as `t2_${string}`);
@@ -365,18 +365,24 @@ router.get<{ postId: string }, [string, string, string, string|undefined][] | { 
         const values = x.value.split(";");
         const lat = String(values[0]);
         const long = String(values[1]);
+        let curr_user = false;
+        if (redditorName == userName) {
+          curr_user = true;
+        }
         return ([
           redditorName,
           lat,
           long,
-          redditorAvatar
+          redditorAvatar,
+          curr_user
         ]);
       }
       return null;
     });
-    const results = (await Promise.all(promises)).filter(Boolean);
-    submissions.push(["", latitude, longitude, ""]);
-    console.log(submissions);
+    type ScanResult = [string, string, string, string | undefined, boolean];
+
+    const results = (await Promise.all(promises))
+      .filter((x): x is ScanResult => x !== null);
     res.json(results);
   }
 );
@@ -456,7 +462,7 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
     // });
 
     const post = await createPost([imageURL0, imageURL1, imageURL2]);
-    redis.hSet(post.id, {
+    await redis.hSet(post.id, {
       image0: imageURL0,
       image1: imageURL1,
       image2: imageURL2,

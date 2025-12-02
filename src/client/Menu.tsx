@@ -37,8 +37,8 @@ const Menu: React.FC = () => {
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
       <div className="fixed top-25 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Geo Dart</div>
       <div className="flex flex-col items-stretch gap-2 w-1/2 max-w-sm">
-        <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => setIsOpen(true)}>How To</button>
         <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/gallery")}>Play</button>
+        <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => setIsOpen(true)}>How To</button>
         <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none" onClick={() => navigate("/create_game")}>Create Game</button>
       </div>
             {isOpen && (

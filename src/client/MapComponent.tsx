@@ -11,58 +11,14 @@ import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
 
-function createAvatarIcon(
-  username: string,
-  avatarUrl: string | null,
-  avatarSize = 50
-): L.DivIcon {
-  const triangleSize = 8; // px (triangle height)
-  const usernameHeight = 18; // estimated px height (depends on font; adjust if needed)
-  const marginBetween = 6; // margin between username and avatar
-
-  // Total icon height: username + margin + avatar + triangle
-  const totalHeight = usernameHeight + marginBetween + avatarSize + triangleSize;
-  const totalWidth = avatarSize; // username should not exceed this ideally (white-space: nowrap)
-
-  // CSS variables inline so each icon can have its own size if you want
-  const styleVars = `
-    --avatar-size: ${avatarSize}px;
-    --triangle-size: ${triangleSize}px;
-    --triangle-offset: -${Math.round(triangleSize / 2)}px;
-  `;
-
-  // Escape values used in HTML? For simple cases this is fine; if username comes from user input,
-  // you may wish to sanitize/escape. We keep it minimal for readability.
-  const html = `
-    <div class="leaflet-avatar-wrapper" style="${styleVars}; width:${totalWidth}px;">
-      <div class="leaflet-avatar-username">${username}</div>
-      <div class="leaflet-avatar-circle">
-        ${
-          avatarUrl
-            ? `<img src="${avatarUrl}" class="leaflet-avatar-img" />`
-            : `<div class="leaflet-avatar-emoji">🌍</div>`
-        }
-      </div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: "", // keep empty (we use wrapper class in HTML). Still respects .leaflet-div-icon CSS.
-    iconSize: [totalWidth, totalHeight],
-    // iconAnchor should point to the tip of the triangle, which is at the bottom center.
-    // Set to [width/2, totalHeight - (triangleHalfAdjustment)]
-    iconAnchor: [Math.round(totalWidth / 2), Math.round(totalHeight - 1)],
-    popupAnchor: [0, -Math.round(totalHeight / 2)]
-  });
-}
-
 const MapComponent: React.FC = () => {
   const navigate = useNavigate();
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
   const guess = useRef<L.Marker>(null);
   const [showScore, setShowScore] = useState(false);
+  const [placePin, setPlacePin] = useState(false);
+  const placePinRef = useRef(showScore);
   const showScoreRef = useRef(showScore);
   const [score, setScore] = useState(0);
   const [distance, setDistance] = useState(0);
@@ -75,6 +31,10 @@ const MapComponent: React.FC = () => {
   useEffect(() => {
     showScoreRef.current = showScore;
   }, [showScore]);
+
+  useEffect(() => {
+    placePinRef.current = placePin;
+  }, [placePin]);
 
   useEffect(() => {
     // Ensure map is only initialized once
@@ -121,7 +81,7 @@ const MapComponent: React.FC = () => {
 
     // Add click handler
     map.on("click", (e) => {
-      if (showScoreRef.current) {
+      if (showScoreRef.current || placePinRef.current) {
         return;
       }
       if (marker) {
@@ -144,12 +104,6 @@ const MapComponent: React.FC = () => {
       fetchAndAddMarker();
     }
   }, [time]);
-
-  useEffect(() => {
-    if (mode == "submission") {
-      setUsersSubmissions();
-    }
-  }, [mode]);
 
   async function fetchAndAddMarker() {
     if (mode == "submission") {
@@ -192,61 +146,8 @@ const MapComponent: React.FC = () => {
     }
   }
 
-  async function setUsersSubmissions() {
-    try {
-      if (mode == "submission") {
-        const res = await fetch('/api/get_submissions');
-        const players = await res.json();
-        for (const player of players) {
-          const userName = player[0];
-          const lat = Number(player[1]);
-          const long = Number(player[2]);
-          const avatarURL = player[3];
-          if (mapRef.current && userName == "") {
-            const marker = L.marker([lat, long]).addTo(mapRef.current);
-          } else if (mapRef.current && Number.isFinite(lat) && Number.isFinite(long)) {
-            const avatarHtml = `
-              <div class="avatar-marker">
-                <img src="${avatarURL}" alt="${userName}" />
-                <div class="username">${userName}</div>
-              </div>
-            `;
-            const markerIcon = createAvatarIcon(userName, avatarURL, 35);
-            const marker = L.marker([lat, long], {icon: markerIcon}).addTo(mapRef.current);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching location:", err);
-    }
-  }
-
-  if (mode == "submission") {
-    return (
-      <div>
-        <div
-          id="map"
-          className="z-10"
-          style={{ height: "100vh", width: "100%" }}
-        />
-        <div className="fixed bottom-25 z-20 w-full flex justify-center">
-          <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
-            onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
-              navigate("/leaderboard");
-            }}>Leaderboard</button>
-        </div>
-        <div className="fixed bottom-10 z-20 w-full flex justify-center">
-          <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
-            onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
-              navigate("/create_game");
-            }}>Create Game</button>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div>
+    <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
       { !showScore && <div 
         className="fixed top-10 z-50 min-w-[4rem] left-1/2 -translate-x-1/2 opacity-85 rounded-md bg-blue-500 px-2 py-2 text-white text-center font-semibold shadow-lg">
         { time }</div> }
@@ -260,7 +161,7 @@ const MapComponent: React.FC = () => {
           {`${score} / 3000 Points`}
         </div>
       </div> }
-      { showScore && <div className="fixed bottom-25 z-20 w-full flex justify-center">
+      { showScore && <div className="fixed top-40 z-20 w-full flex justify-center">
         <div className="rounded-md bg-blue-500 px-4 py-2 text-lg font-bold text-white opacity-85 focus:outline-none">
           {`Distance: ${distance} km`}
         </div>
@@ -271,9 +172,14 @@ const MapComponent: React.FC = () => {
           onClick={ () => { fetchAndAddMarker() } }
         >Place Dart</button>}
       </div>
-      <div className="fixed bottom-10 z-20 w-full flex justify-center">
+      <div className="fixed bottom-10 z-20 flex flex-col gap-2 justify-center items-center items-stretch max-w-sm">
+        { showScore && <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold shadow-lg text-white opacity-100 focus:outline-none"
+          onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+            navigate("/guess_map");
+          }}>Other Guesses</button>
+        }
         { showScore && <button
-          className="rounded-md bg-blue-500 px-6 py-3 text-white font-semibold shadow-lg"
+          className="rounded-md bg-blue-500 px-4 py-2 text-xl text-white font-semibold shadow-lg"
           onClick={ () => { navigate("/leaderboard") } }
         >Leaderboard</button>}
       </div>

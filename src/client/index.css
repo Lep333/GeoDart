@@ -59,6 +59,7 @@ body {
   position: relative;
   pointer-events: auto; /* so you can click the marker normally */
   transform-origin: center bottom; /* useful if you scale on zoom */
+  opacity: 0.9;
 }
 
 /* Username shown above the avatar */
@@ -68,8 +69,8 @@ body {
   padding: 2px 6px;
   margin-bottom: 6px;
   border-radius: 4px;
-  background: rgba(255,255,255,0.9);
-  color: #111;
+  background: var(--border-colour);
+  color: white;
   white-space: nowrap;
   box-shadow: 0 1px 2px rgba(0,0,0,0.15);
 }
@@ -82,7 +83,7 @@ body {
   overflow: hidden;
   display: block;
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  border: 2px solid white;
+  border: 2px solid var(--border-colour);
   background: #eee;
 }
 
@@ -115,4 +116,12 @@ body {
 .leaflet-div-icon {
   background: transparent;
   border: none;
+}
+
+.leaflet-avatar-emoji {
+  font-size: 32px;   /* scales emoji to same size as image */
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

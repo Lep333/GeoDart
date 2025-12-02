@@ -7,6 +7,7 @@ import Preview from "./Preview";
 import CreateGame from "./CreateGame";
 import Leaderboard from "./Leaderboard";
 import { TimerProvider } from "./TimerContext";
+import GuessMap from "./GuessMap";
 
 function RedirectIndex() {
   const location = useLocation();
@@ -22,6 +23,7 @@ export const App = () => {
           <Route path="/" element={<Menu />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/map" element={<MapComponent />} />
+          <Route path="/guess_map" element={<GuessMap />} />
           <Route path="/menu" element={<Menu />} />
           <Route path="/create_game" element={<CreateGame />} />
           <Route path="/leaderboard" element={<Leaderboard />} />

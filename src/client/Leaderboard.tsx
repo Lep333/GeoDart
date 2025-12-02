@@ -181,14 +181,16 @@ const Leaderboard: React.FC = () => {
           </div>
         </div>
       </div>
-      <button className="fixed bottom-25 rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
-        onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
-          navigate("/map", {state: {mode: "submission"}});
-        }}>See Guesses</button>
-      <button className="fixed bottom-10 rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
-        onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
-          navigate("/create_game");
-        }}>Create Game</button>
+      <div className="fixed bottom-10 z-20 flex flex-col gap-2 justify-center items-center items-stretch max-w-sm">
+        <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
+          onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+            navigate("/guess_map");
+          }}>Other Guesses</button>
+        <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
+          onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+            navigate("/create_game");
+          }}>Create Game</button>
+      </div>
     </div>
   );
 };
