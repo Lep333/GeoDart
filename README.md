@@ -11,3 +11,17 @@ And compare your result to other redditors.
 You create a new Geo Dart from within the app.
 Just select images you want others to find and upload them.
 You also need to select the solution on the world map or enter the coordinates.
+
+# Changelog
+## 0.42
+Added dart theme to the map.
+Also fixed error that occured when trying to fetch deleted user.
+
+## 0.27
+Fixing rate limiting of loading reddit avatar images
+
+## 0.26
+Testing different cluster sizes.
+
+## 0.25
+Clusters guesses together to prevent the screen being overflown by users guesses.

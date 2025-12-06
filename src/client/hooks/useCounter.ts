@@ -10,6 +10,7 @@ interface CounterState {
   image2: string;
   latitude: number;
   longitude: number;
+  author: string;
 }
 
 export const useCounter = () => {
@@ -21,7 +22,8 @@ export const useCounter = () => {
     image1: '',
     image2: '',
     latitude: 0,
-    longitude: 0
+    longitude: 0,
+    author: '',
   });
   const [postId, setPostId] = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export const useCounter = () => {
           image2: data.image2,
           latitude: 0,
           longitude: 0,
+          author: data.author,
         });
         setPostId(data.postId);
       } catch (err) {

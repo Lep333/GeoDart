@@ -41,7 +41,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         redis.get('count'),
         reddit.getCurrentUsername(),
       ]);
-      let [image0, image1, image2] = await redis.hMGet(postId, ['image0', 'image1', 'image2']);
+      let [image0, image1, image2, postAuthor] = await redis.hMGet(postId, ['image0', 'image1', 'image2', 'author']);
       // console.log("images: ", image0, image1, image2);
 
       res.json({
@@ -52,6 +52,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         image0: image0 ?? '',
         image1: image1 ?? '',
         image2: image2 ?? '',
+        author: postAuthor ?? '',
       });
     } catch (error) {
       console.error(`API Init Error for post ${postId}:`, error);
@@ -208,7 +209,7 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
 
     const userId = (await reddit.getCurrentUser())!.id;
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
-    await redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp}`});
+    await redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp};""`});
 
     res.json({ seconds: playTime });
   }
@@ -279,13 +280,14 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
 
     const user = await reddit.getCurrentUser();
     const userId = user!.id;
+    const redditorAvatar = await user?.getSnoovatarUrl();
     const [, , , , timestamp] = (await redis.hGet(postId, userId))?.split(";") ?? [];
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
 
     if (latitude == null || longitude == null) {
       res.status(200);
       await redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${0};${0};${timestamp}`,
+        [userId]: `${latitude};${longitude};${0};${0};${timestamp};${redditorAvatar}`,
       });
 
       res.json({
@@ -306,13 +308,13 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
         message: 'Submitted after deadline :(',
       });
       await redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${distance};${0};${timestamp}`, // TODO: this is completly wrong?
+        [userId]: `${latitude};${longitude};${distance};${0};${timestamp};${redditorAvatar}`, // TODO: this is completly wrong?
       });
       return;
     }
 
     await redis.hSet(postId, {
-      [userId]: `${latitude};${longitude};${distance};${score};${timestamp}`,
+      [userId]: `${latitude};${longitude};${distance};${score};${timestamp};${redditorAvatar}`,
     });
 
     await redis.zAdd(`${postId}_leaderboard`,
@@ -328,58 +330,83 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
   }
 );
 
-router.get<{ postId: string }, [string, string, string, string|undefined, boolean][] | { status: string; message: string }, { latitude: number; longitude: number }>(
-  '/api/get_submissions',
-  async (req, res): Promise<void> => {
-    const { postId } = context;
-    const userName = (await reddit.getCurrentUser())!.username;
-    if (!postId) {
-      res.status(400).json({
-        status: 'error',
-        message: 'Parameter not provided',
-      });
-      return;
-    }
-    // Scan and interate over all the fields within 'userInfo'
-    let latitude: string = "";
-    let longitude: string = "";
-    const hScanResponse = await redis.hScan(postId, 0);
-    const promises = hScanResponse.fieldValues.map(async (x) => {
-      if (x.field == "latitude") {
-        latitude = x.value;
-      }
-      if (x.field == "longitude") {
-        longitude = x.value;
-      }
-      if (latitude && longitude) {
-        let temp_lat = latitude;
-        let temp_long = longitude;
-        latitude = "";
-        longitude = "";
-        return (["", temp_lat, temp_long, "", false]);
-      }
-      if (x.field.startsWith("t2_")) {
-        const redditorUser = await reddit.getUserById(x.field as `t2_${string}`);
-        const redditorName = String(redditorUser?.username);
-        const redditorAvatar = await redditorUser?.getSnoovatarUrl();
-        const values = x.value.split(";");
-        const lat = String(values[0]);
-        const long = String(values[1]);
-        let curr_user = false;
-        if (redditorName == userName) {
-          curr_user = true;
-        }
-        return ([
-          redditorName,
-          lat,
-          long,
-          redditorAvatar,
-          curr_user
-        ]);
-      }
-      return null;
+router.get('/api/get_submissions', async (req, res) => {
+  const { postId } = context;
+  const userName = (await reddit.getCurrentUser())!.username;
+
+  if (!postId) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Parameter not provided'
     });
-    type ScanResult = [string, string, string, string | undefined, boolean];
+  }
+
+  // FULL HSCAN LOOP
+  let cursor = 0;
+  let fieldValues: { field: string; value: string }[] = [];
+  do {
+    const resp = await redis.hScan(postId, cursor);
+    cursor = resp.cursor;
+    fieldValues.push(...resp.fieldValues);
+  } while (cursor !== 0);
+
+  let latitude = "";
+  let longitude = "";
+
+  const promises = fieldValues.map(async (x) => {
+    if (x.field === "latitude") {
+      latitude = x.value;
+    }
+
+    if (x.field === "longitude") {
+      longitude = x.value;
+    }
+
+    if (latitude && longitude) {
+      const result = ["", latitude, longitude, "", false] as const;
+      latitude = "";
+      longitude = "";
+      return result;
+    }
+
+    if (x.field.startsWith("t2_")) {
+      let redditorUser;
+      try {
+        redditorUser = await reddit.getUserById(x.field as `t2_${string}`);
+      } catch (err) {
+        console.error("Failed to fetch user:", x.field, err);
+        return null;
+      }
+
+      const redditorName = redditorUser?.username ?? "";
+      if (!redditorName) {
+        return null;
+      }
+      const values = x.value.split(";");
+
+      let redditorAvatar;
+      if (x.value.includes(",")) { // TODO: remove soonTM
+        redditorAvatar = await redditorUser?.getSnoovatarUrl();
+        const val = values[0];
+        let [lat, long, distance, score, time, avatar] = val!.split(",");
+        await redis.hSet(postId, {
+          [x.field]: `${lat};${long};${distance};${score};${time};${redditorAvatar}`
+        });
+      } else {
+        redditorAvatar = values[5];
+      }
+
+      return [
+        redditorName,
+        values[0],
+        values[1],
+        redditorAvatar,
+        redditorName === userName
+      ] as const;
+    }
+
+    return null;
+  });
 
     const results = (await Promise.all(promises))
       .filter((x): x is ScanResult => x !== null);
@@ -439,7 +466,7 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
     const { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude } = req.body;
-    
+    const userName = (await reddit.getCurrentUser())!.username;
     //console.log("trying to create game");
     //console.log(imageURL0, imageURL1, imageURL2);
 
@@ -468,6 +495,7 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
       image2: imageURL2,
       latitude: String(latitude),
       longitude: String(longitude),
+      author: userName,
     });
 
     res.status(200).json({ status: 'ok', url: post.url });

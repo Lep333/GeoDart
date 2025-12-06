@@ -10,6 +10,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
+import dart from "/dart.svg";
+
+type DartLabel = {
+  marker: L.Marker;
+  zoom: number;
+};
 
 const MapComponent: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +33,7 @@ const MapComponent: React.FC = () => {
   const { time } = useTimer();
   const location = useLocation();
   const mode: string = location.state?.mode ?? "default";
+  const dartLabelsRef = useRef<DartLabel[]>([]);
 
   useEffect(() => {
     showScoreRef.current = showScore;
@@ -41,7 +48,7 @@ const MapComponent: React.FC = () => {
     const map = L.map("map", {
       zoomControl: false,   // remove + / - buttons
       scrollWheelZoom: true, // allow zoom via mouse wheel
-      touchZoom: true,   
+      touchZoom: true,
     }).setView([20, 0], 2);
     mapRef.current = map;
 
@@ -87,11 +94,37 @@ const MapComponent: React.FC = () => {
       if (marker) {
         map.removeLayer(marker);
       }
-      marker = L.marker(e.latlng).addTo(map);
+      const dartIcon = L.icon({
+        iconUrl: dart,
+        iconSize: [40,40],
+        iconAnchor: [40,40],
+      });
+      marker = L.marker(e.latlng, {icon: dartIcon}).addTo(map);
       guess.current = marker;
       latitude = e.latlng.lat;
       longitude = e.latlng.lng;
     });
+
+    map.on("zoomend", () => {
+      const zoom = map.getZoom();
+      console.log(dartLabelsRef.current);
+      dartLabelsRef.current.forEach((labelObj) => {
+        const el = (labelObj as any).marker.getElement()?.querySelector(".dart-label-inner") as HTMLElement;
+        if (!el) return;
+
+        // Show/hide based on zoom
+        if (zoom < labelObj.zoom) {
+          el.style.display = "none";
+        } else {
+          el.style.display = "block";
+        }
+
+        // Scale dynamically
+        const scale = Math.pow(1.1, zoom - 10); // adjust formula as needed
+        el.style.transform = `scale(${scale})`;
+      });
+    });
+
     map.addEventListener
       // Cleanup on unmount
       return () => {
@@ -131,19 +164,91 @@ const MapComponent: React.FC = () => {
       setScore(data.score);
       console.log(`distance ${data.distance} score ${data.score}`);
       setShowScore(true);
-
       if (mapRef.current) {
-        const marker = L.marker([lat, lng]).addTo(mapRef.current);
+        // const marker = L.marker([lat, lng], {icon: targetIcon}).addTo(mapRef.current);
 
         const bounds = L.latLngBounds([
           guess.current!.getLatLng(),
-          marker!.getLatLng(),
+          [lat, lng],
         ]);
         mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+        const center = [lat, lng]; // your target location
+
+        const RINGS = [
+          { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "0", offset: 30000, zoom: 3 }, // 3000 km
+          { radius: 2500000, color: "#ffffff", fill: "#ffffff", points: "500", offset: 30000, zoom: 3 }, // 2500 km
+          { radius: 2000000, color: "#ff0000", fill: "#ff0000", points: "1000", offset: 30000, zoom: 3 }, // 2000 km
+          { radius: 1500000, color: "#ffffff", fill: "#ffffff", points: "1500", offset: 30000, zoom: 3 }, // 1500 km
+          { radius: 1000000, color: "#ff0000", fill: "#ff0000", points: "2000", offset: 30000, zoom: 3 }, // 1000 km
+          { radius:  500000, color: "#ffffff", fill: "#ffffff", points: "2500", offset: 30000, zoom: 3 }, //  500 km
+          { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  5000, zoom: 6 }, //  100 km
+          { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  3000, zoom: 7 }, //   50 km
+          { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 7 }, //    1 km
+        ];
+        RINGS.forEach(ring => {
+          L.circle(center, {
+            radius: ring.radius,
+            color: ring.color,
+            weight: 2,
+            fillColor: ring.fill,
+            fillOpacity: 0.0
+          }).addTo(mapRef.current!)
+        // Decide if label should be permanent
+
+        // Offset beyond ring to place label
+        const labelPos = destinationPoint(lat, lng, ring.radius + ring.offset, 180); // south
+
+        // Create DivIcon label
+        const label = L.marker([labelPos.lat, labelPos.lng], {
+          icon: L.divIcon({
+            className: "dart-label",
+            html: `<div class="dart-label-inner">${ring.points}</div>`,
+          }),
+          interactive: false,
+        });
+
+        label.addTo(mapRef.current!);
+        dartLabelsRef.current.push({ marker: label, zoom: ring.zoom });
+        });
+        console.log(dartLabelsRef);
       }
     } catch (err) {
       console.error("Error fetching location:", err);
     }
+  }
+
+  function destinationPoint(
+    latDeg: number,
+    lngDeg: number,
+    distanceMeters: number,
+    bearingDeg: number
+  ): { lat: number; lng: number } {
+    const R = 6371000; // mean Earth radius in meters
+
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+    const φ1 = toRad(latDeg);
+    const λ1 = toRad(lngDeg);
+    const θ = toRad(bearingDeg);
+    const δ = distanceMeters / R; // angular distance in radians
+
+    const sinφ1 = Math.sin(φ1);
+    const cosφ1 = Math.cos(φ1);
+    const sinδ = Math.sin(δ);
+    const cosδ = Math.cos(δ);
+    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+    const φ2 = Math.asin(sinφ2);
+
+    const y = Math.sin(θ) * sinδ * cosφ1;
+    const x = cosδ - sinφ1 * sinφ2;
+    const λ2 = λ1 + Math.atan2(y, x);
+
+    // normalize lon to -180..+180
+    const lng2 = ((toDeg(λ2) + 540) % 360) - 180;
+    const lat2 = toDeg(φ2);
+
+    return { lat: lat2, lng: lng2 };
   }
 
   return (
@@ -156,12 +261,12 @@ const MapComponent: React.FC = () => {
         className="z-10"
         style={{ height: "100vh", width: "100%" }}
       />
-      { showScore && <div className="fixed top-22 z-20 w-full flex justify-center">
+      { showScore && <div className="fixed top-10 z-20 w-full flex justify-center">
         <div className="rounded-md bg-blue-500 px-4 py-2 text-3xl font-bold text-white opacity-85 focus:outline-none">
           {`${score} / 3000 Points`}
         </div>
       </div> }
-      { showScore && <div className="fixed top-40 z-20 w-full flex justify-center">
+      { showScore && <div className="fixed top-25 z-20 w-full flex justify-center">
         <div className="rounded-md bg-blue-500 px-4 py-2 text-lg font-bold text-white opacity-85 focus:outline-none">
           {`Distance: ${distance} km`}
         </div>

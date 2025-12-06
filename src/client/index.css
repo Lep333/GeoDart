@@ -125,3 +125,12 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+.dart-label-inner {
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 0.2rem 0.4rem;
+  transform-origin: center center;
+  transition: transform 0.2s linear;
+  white-space: nowrap;
+}

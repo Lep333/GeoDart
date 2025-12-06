@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-
+import 'leaflet.markercluster';
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 // Fix default marker icon issue when bundling
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import iconShadowUrl from "leaflet/dist/images/marker-shadow.png";
@@ -10,6 +12,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
+
+type DartLabel = {
+  marker: L.Marker;
+  zoom: number;
+};
 
 function createAvatarIcon(
   username: string,
@@ -41,7 +48,7 @@ function createAvatarIcon(
       <div class="leaflet-avatar-username">${username}</div>
       <div class="leaflet-avatar-circle">
         ${
-          avatarUrl
+          avatarUrl != "undefined"
             ? `<img src="${avatarUrl}" class="leaflet-avatar-img" />`
             : `<div class="leaflet-avatar-emoji">🌍</div>`
         }
@@ -76,6 +83,7 @@ const GuessMap: React.FC = () => {
   const { time } = useTimer();
   const location = useLocation();
   const mode: string = location.state?.mode ?? "default";
+  const dartLabelsRef = useRef<DartLabel[]>([]);
 
   useEffect(() => {
     showScoreRef.current = showScore;
@@ -126,7 +134,10 @@ const GuessMap: React.FC = () => {
     });
     L.Marker.prototype.options.icon = defaultIcon;
 
-    let marker: L.Marker;
+    map.on("zoomend", () => {
+      handleZoom();
+    });
+
     map.addEventListener
       // Cleanup on unmount
       return () => {
@@ -138,9 +149,31 @@ const GuessMap: React.FC = () => {
     setUsersSubmissions();
   }, []);
   
+  function handleZoom() {
+    const zoom = mapRef.current!.getZoom();
+    console.log(dartLabelsRef.current);
+    dartLabelsRef.current.forEach((labelObj) => {
+      const el = (labelObj as any).marker.getElement()?.querySelector(".dart-label-inner") as HTMLElement;
+      if (!el) return;
+
+      // Show/hide based on zoom
+      if (zoom < labelObj.zoom) {
+        el.style.display = "none";
+      } else {
+        el.style.display = "block";
+      }
+
+      // Scale dynamically
+      const scale = Math.pow(1.1, zoom - 10); // adjust formula as needed
+      el.style.transform = `scale(${scale})`;
+    });
+  }
+
   async function setUsersSubmissions() {
     try {
       setPlacePin(true);
+      var markers = L.markerClusterGroup({maxClusterRadius: 40});
+      
       const res = await fetch('/api/get_submissions');
       const players = await res.json();
       for (const player of players) {
@@ -149,7 +182,44 @@ const GuessMap: React.FC = () => {
         const long = Number(player[2]);
         const avatarURL = player[3];
         if (mapRef.current && userName == "") {
-          const marker = L.marker([lat, long]).addTo(mapRef.current);
+          const center = [lat, long];
+          const RINGS = [
+            { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "0", offset: 30000, zoom: 3 }, // 3000 km
+            { radius: 2500000, color: "#ffffff", fill: "#ffffff", points: "500", offset: 30000, zoom: 3 }, // 2500 km
+            { radius: 2000000, color: "#ff0000", fill: "#ff0000", points: "1000", offset: 30000, zoom: 3 }, // 2000 km
+            { radius: 1500000, color: "#ffffff", fill: "#ffffff", points: "1500", offset: 30000, zoom: 3 }, // 1500 km
+            { radius: 1000000, color: "#ff0000", fill: "#ff0000", points: "2000", offset: 30000, zoom: 3 }, // 1000 km
+            { radius:  500000, color: "#ffffff", fill: "#ffffff", points: "2500", offset: 30000, zoom: 3 }, //  500 km
+            { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  5000, zoom: 6 }, //  100 km
+            { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  3000, zoom: 7 }, //   50 km
+            { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 7 }, //    1 km
+          ];
+          RINGS.forEach(ring => {
+              L.circle(center, {
+                radius: ring.radius,
+                color: ring.color,
+                weight: 2,
+                fillColor: ring.fill,
+                fillOpacity: 0.0
+              }).addTo(mapRef.current!)
+            // Decide if label should be permanent
+    
+            // Offset beyond ring to place label
+            const labelPos = destinationPoint(lat, long, ring.radius + ring.offset, 180); // south
+    
+            // Create DivIcon label
+            const label = L.marker([labelPos.lat, labelPos.lng], {
+              icon: L.divIcon({
+                className: "dart-label",
+                html: `<div class="dart-label-inner">${ring.points}</div>`,
+              }),
+              interactive: false,
+            });
+    
+            label.addTo(mapRef.current!);
+            dartLabelsRef.current.push({ marker: label, zoom: ring.zoom });
+          });
+          handleZoom();
         } else if (mapRef.current && Number.isFinite(lat) && Number.isFinite(long)) {
           const avatarHtml = `
             <div class="avatar-marker">
@@ -158,12 +228,47 @@ const GuessMap: React.FC = () => {
             </div>
           `;
           const markerIcon = createAvatarIcon(userName, avatarURL, 30, player[4]);
-          const marker = L.marker([lat, long], {icon: markerIcon}).addTo(mapRef.current);
+          markers.addLayer(L.marker([lat, long], {icon: markerIcon}));
         }
       }
+      mapRef.current!.addLayer(markers);
     } catch (err) {
       console.error("Error fetching location:", err);
     }
+  }
+
+  function destinationPoint(
+    latDeg: number,
+    lngDeg: number,
+    distanceMeters: number,
+    bearingDeg: number
+  ): { lat: number; lng: number } {
+    const R = 6371000; // mean Earth radius in meters
+
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+    const φ1 = toRad(latDeg);
+    const λ1 = toRad(lngDeg);
+    const θ = toRad(bearingDeg);
+    const δ = distanceMeters / R; // angular distance in radians
+
+    const sinφ1 = Math.sin(φ1);
+    const cosφ1 = Math.cos(φ1);
+    const sinδ = Math.sin(δ);
+    const cosδ = Math.cos(δ);
+    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+    const φ2 = Math.asin(sinφ2);
+
+    const y = Math.sin(θ) * sinδ * cosφ1;
+    const x = cosδ - sinφ1 * sinφ2;
+    const λ2 = λ1 + Math.atan2(y, x);
+
+    // normalize lon to -180..+180
+    const lng2 = ((toDeg(λ2) + 540) % 360) - 180;
+    const lat2 = toDeg(φ2);
+
+    return { lat: lat2, lng: lng2 };
   }
 
   return (

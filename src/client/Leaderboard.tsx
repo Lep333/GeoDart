@@ -7,7 +7,7 @@ import { getWebViewMode, requestExpandedMode } from '@devvit/web/client';
 const Leaderboard: React.FC = () => {
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
-  const { image0, image1, image2 } = useCounter();
+  const { image0, image1, image2, author} = useCounter();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [hasPlayed, setHasPlayed] = useState<boolean | null>(null);
@@ -111,7 +111,8 @@ const Leaderboard: React.FC = () => {
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Leaderboard</div>
-        <div className="fixed top-25 grid grid-rows-[auto_1fr] w-2/3 h-3/5">
+        { author && <div className="fixed top-25 rounded-md bg-blue-500 font-bold px-2 py-1 text-white">{`GeoDart by ${author}`}</div>}
+        <div className="fixed top-40 bottom-30 grid grid-rows-[auto_1fr] w-2/3">
           <div className="grid grid-cols-[1fr_2fr_1fr] rounded-md bg-blue-500 text-white px-2 py-1 mb-1 shadow-md">
               <div>Rank</div>
               <div>Name</div>
@@ -156,7 +157,8 @@ const Leaderboard: React.FC = () => {
         className="absolute inset-0 w-full h-full object-cover"
       />
       <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Leaderboard</div>
-      <div className="fixed top-25 bottom-40 grid grid-rows-[auto_1fr] w-2/3">
+      { author && <div className="fixed top-25 rounded-md bg-blue-500 font-bold px-2 py-1 text-white">{`GeoDart by ${author}`}</div>}
+      <div className="fixed top-40 bottom-40 grid grid-rows-[auto_1fr] w-2/3">
         <div className="grid grid-cols-[1fr_2fr_1fr] rounded-md bg-blue-500 text-white px-2 py-1 mb-1 shadow-md">
             <div>Rank</div>
             <div>Name</div>

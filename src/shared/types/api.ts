@@ -6,6 +6,7 @@ export type InitResponse = {
   image0: string;
   image1: string;
   image2: string;
+  author: string;
 };
 
 export type IncrementResponse = {
