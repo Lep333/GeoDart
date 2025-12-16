@@ -145,7 +145,10 @@ const MapComponent: React.FC = () => {
 
     try {
       const latitude = guess.current?.getLatLng().lat;
-      const longitude = guess.current?.getLatLng().lng;
+      let longitude = guess.current?.getLatLng().lng;
+      console.log(longitude);
+      longitude = L.Util.wrapNum(longitude!, [-180, 180]);
+      console.log(longitude);
       const body = JSON.stringify({
         latitude: latitude ?? null,
         longitude: longitude ?? null,
