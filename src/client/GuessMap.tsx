@@ -184,15 +184,15 @@ const GuessMap: React.FC = () => {
         if (mapRef.current && userName == "") {
           const center = [lat, long];
           const RINGS = [
-            { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "0", offset: 30000, zoom: 3 }, // 3000 km
+            { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "1", offset: 30000, zoom: 3 }, // 3000 km
             { radius: 2500000, color: "#ffffff", fill: "#ffffff", points: "500", offset: 30000, zoom: 3 }, // 2500 km
             { radius: 2000000, color: "#ff0000", fill: "#ff0000", points: "1000", offset: 30000, zoom: 3 }, // 2000 km
             { radius: 1500000, color: "#ffffff", fill: "#ffffff", points: "1500", offset: 30000, zoom: 3 }, // 1500 km
             { radius: 1000000, color: "#ff0000", fill: "#ff0000", points: "2000", offset: 30000, zoom: 3 }, // 1000 km
             { radius:  500000, color: "#ffffff", fill: "#ffffff", points: "2500", offset: 30000, zoom: 3 }, //  500 km
-            { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  5000, zoom: 6 }, //  100 km
-            { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  3000, zoom: 7 }, //   50 km
-            { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 7 }, //    1 km
+            { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  10000, zoom: 6 }, //  100 km
+            { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  8000, zoom: 7 }, //   50 km
+            { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 13 }, //    1 km
           ];
           RINGS.forEach(ring => {
               L.circle(center, {
@@ -205,13 +205,16 @@ const GuessMap: React.FC = () => {
             // Decide if label should be permanent
     
             // Offset beyond ring to place label
-            const labelPos = destinationPoint(lat, long, ring.radius + ring.offset, 180); // south
+            const safeDist = Math.max(10, ring.radius); // never <= 0
+            const labelPos = destinationPoint(lat, long, safeDist, 180);
     
             // Create DivIcon label
             const label = L.marker([labelPos.lat, labelPos.lng], {
               icon: L.divIcon({
-                className: "dart-label",
+                className: "inline-block transform -translate-x-1/2",
                 html: `<div class="dart-label-inner">${ring.points}</div>`,
+                iconAnchor: [0, 30],
+                iconSize: undefined,
               }),
               interactive: false,
             });

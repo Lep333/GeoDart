@@ -13,6 +13,9 @@ Just select images you want others to find and upload them.
 You also need to select the solution on the world map or enter the coordinates.
 
 # Changelog
+## 0.43
+Polished dart lables.
+
 ## 0.42
 Added dart theme to the map.
 Also fixed error that occured when trying to fetch deleted user.

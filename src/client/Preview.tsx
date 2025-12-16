@@ -13,7 +13,6 @@ const Preview: React.FC = () => {
   const [loading, setLoading] = useState<boolean | null>(true);
 
   useEffect(() => {
-    console.log(image0);
     let images = [image0];
     if (image1) {
       images.push(image1);
