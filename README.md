@@ -13,6 +13,13 @@ Just select images you want others to find and upload them.
 You also need to select the solution on the world map or enter the coordinates.
 
 # Changelog
+## 0.46
+Added ability to look all provided images in the leaderboard.
+
+## 0.44
+Normalizing input longitude of guess.
+No guess on a neighbour earth should be possible.
+
 ## 0.43
 Polished dart lables.
 
