@@ -54,6 +54,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         image2: image2 ?? '',
         author: postAuthor ?? '',
       });
+      return;
     } catch (error) {
       console.error(`API Init Error for post ${postId}:`, error);
       let errorMessage = 'Unknown error during initialization';
@@ -125,8 +126,10 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
       return;
     }
     let placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
-    placeFromLast = placeFromLast? placeFromLast: 0;
-    const ownRank = timesPlayed - placeFromLast;
+    if (placeFromLast === null) {
+      placeFromLast = 0;
+    }
+    const ownRank = timesPlayed - placeFromLast!;
     if (ownRank <= 1000) {
       let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
       let newData: Leaderboard[] = [];
@@ -141,6 +144,7 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
         rank++;
       });
       res.json({leaderboard: newData});
+      return;
     } else {
       const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
       let data = await redis.zRange(`${postId}_leaderboard`, Math.max(ownRank - 50, 0), upperRank, {by: 'rank'});
@@ -156,6 +160,7 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
         rank++;
       });
       res.json({leaderboard: newData});
+      return;
     }
   }
 );
@@ -179,15 +184,18 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
       res.json({
         already_played: true,
       });
+      return;
     }
     if (resp) {
       res.json({
         already_played: true,
       });
+      return;
     } else {
       res.status(200).json({
         already_played: false,
       });
+      return;
     }
   }
 );

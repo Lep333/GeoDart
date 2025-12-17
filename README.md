@@ -13,6 +13,10 @@ Just select images you want others to find and upload them.
 You also need to select the solution on the world map or enter the coordinates.
 
 # Changelog
+
+## 0.47
+Fixed cannot set HTTP headers after they are sent
+
 ## 0.46
 Added ability to look all provided images in the leaderboard.
 
