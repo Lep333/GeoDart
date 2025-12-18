@@ -106,41 +106,9 @@ const Leaderboard: React.FC = () => {
   if (currentMode === 'inline') {
     return (
       <div className="flex w-full h-screen relative flex-col justify-center items-center gap-4 overflow-hidden">
-      <button
-          className="
-            fixed 
-            top-1/2 -translate-y-1/2
-            left-0                   
-            z-50
-            min-w-[2rem]
-            h-1/7
-            rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
-            text-white text-center font-semibold shadow-lg
-            opacity-85
-          "
-          onClick={() => { if (imageIndex > 0) setImageIndex(imageIndex - 1)}}
-          hidden={imageIndex==0? true: false}
-          ><img src="/chevron_backward_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" />
-        </button>
-        <button
-          className="
-            fixed 
-            top-1/2 -translate-y-1/2
-            right-0                   
-            z-50
-            h-1/7
-            min-w-[2rem]
-            rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
-            text-white text-center font-semibold shadow-lg
-            opacity-85
-          "
-          onClick={() => {if (imageIndex + 1 < images.length) setImageIndex(imageIndex + 1)} }
-          hidden={imageIndex==images.length-1? true: false}
-          ><img src="/chevron_right_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" />
-        </button>
         <img
           ref={imgRef}
-          src={images[imageIndex]}
+          src={images[0]}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Leaderboard</div>

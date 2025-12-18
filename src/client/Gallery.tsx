@@ -5,6 +5,10 @@ import panzoom from '@panzoom/panzoom';
 import { useTimer } from "./TimerContext";
 import EarthLoader from "./LoadingScreen";
 
+type NavState = {
+  timerAlreadySet?: bool;
+};
+
 const Gallery: React.FC = () => {
   const { image0, image1, image2 } = useCounter();
   const navigate = useNavigate();
@@ -13,6 +17,9 @@ const Gallery: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [images, setImages] = useState<string[]>([]);
   const [imageIndex, setImageIndex] = useState<number>(0);
+  const location = useLocation();
+  const state = location.state as NavState | null;
+  const timerAlreadySet = state?.timerAlreadySet ?? false;
 
   useEffect(() => {
     const el = imgRef.current;
@@ -37,6 +44,11 @@ const Gallery: React.FC = () => {
   }, [loading, imageIndex]);
 
   useEffect(() => {
+    if (timerAlreadySet) {
+      setLoading(false);
+      return;
+    }
+
     async function submitTimestamp() {
       const resp = await fetch('/api/submission_timestamp', {
         method: "POST",

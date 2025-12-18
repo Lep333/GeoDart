@@ -126,9 +126,7 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
       return;
     }
     let placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
-    if (placeFromLast === null) {
-      placeFromLast = 0;
-    }
+    placeFromLast = placeFromLast? placeFromLast: 0;
     const ownRank = timesPlayed - placeFromLast!;
     if (ownRank <= 1000) {
       let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
@@ -182,13 +180,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: true,
+        already_played: false, // TODO
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: true,
+        already_played: false, // TODO
       });
       return;
     } else {

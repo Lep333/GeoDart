@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useContext } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -11,6 +11,7 @@ import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
 import dart from "/dart.svg";
+import { AppContext } from "./AppContext";
 
 type DartLabel = {
   marker: L.Marker;
@@ -34,6 +35,7 @@ const MapComponent: React.FC = () => {
   const location = useLocation();
   const mode: string = location.state?.mode ?? "default";
   const dartLabelsRef = useRef<DartLabel[]>([]);
+  const app = useContext(AppContext);
 
   useEffect(() => {
     showScoreRef.current = showScore;
@@ -86,6 +88,15 @@ const MapComponent: React.FC = () => {
 
     let marker: L.Marker;
 
+    const dartIcon = L.icon({
+        iconUrl: dart,
+        iconSize: [40,40],
+        iconAnchor: [40,40],
+    });
+    if (app?.latitude && app.longitude) {
+      marker = L.marker(L.latLng(app.latitude, app.longitude), {icon: dartIcon}).addTo(map);
+    }
+
     // Add click handler
     map.on("click", (e) => {
       if (showScoreRef.current || placePinRef.current) {
@@ -94,15 +105,13 @@ const MapComponent: React.FC = () => {
       if (marker) {
         map.removeLayer(marker);
       }
-      const dartIcon = L.icon({
-        iconUrl: dart,
-        iconSize: [40,40],
-        iconAnchor: [40,40],
-      });
+
       marker = L.marker(e.latlng, {icon: dartIcon}).addTo(map);
       guess.current = marker;
       latitude = e.latlng.lat;
       longitude = e.latlng.lng;
+      app?.setLatitude(latitude);
+      app?.setLongitude(longitude);
     });
 
     map.on("zoomend", () => {
@@ -144,14 +153,12 @@ const MapComponent: React.FC = () => {
     }
 
     try {
-      const latitude = guess.current?.getLatLng().lat;
-      let longitude = guess.current?.getLatLng().lng;
-      console.log(longitude);
+      const latitude = app?.latitude;
+      let longitude = app?.longitude;
       longitude = L.Util.wrapNum(longitude!, [-180, 180]);
-      console.log(longitude);
       const body = JSON.stringify({
-        latitude: latitude ?? null,
-        longitude: longitude ?? null,
+        latitude: latitude,
+        longitude: longitude,
       });
       const response = await fetch('/api/submit_dart_position', {
         method: "POST",
@@ -171,7 +178,7 @@ const MapComponent: React.FC = () => {
         // const marker = L.marker([lat, lng], {icon: targetIcon}).addTo(mapRef.current);
 
         const bounds = L.latLngBounds([
-          guess.current!.getLatLng(),
+          L.latLng(latitude!, longitude),
           [lat, lng],
         ]);
         mapRef.current.fitBounds(bounds, { padding: [50, 50] });
@@ -266,6 +273,22 @@ const MapComponent: React.FC = () => {
         className="z-10"
         style={{ height: "100vh", width: "100%" }}
       />
+      <button
+        className="
+          fixed 
+          top-1/2 -translate-y-1/2
+          left-0                   
+          z-50
+          min-w-[2rem]
+          h-1/7
+          rounded-md bg-blue-500 p-2 /* use p-2 for equal padding */
+          text-white text-center font-semibold shadow-lg
+          opacity-85
+        "
+        onClick={() => { navigate("/gallery", {state: {timerAlreadySet: true}}) }}
+        hidden={showScore}
+        ><img src="/chevron_backward_24dp_FFFFFF_FILL0_wght400_GRAD0_opsz24.svg" />
+      </button>
       { showScore && <div className="fixed top-10 z-20 w-full flex justify-center">
         <div className="rounded-md bg-blue-500 px-4 py-2 text-3xl font-bold text-white opacity-85 focus:outline-none">
           {`${score} / 3000 Points`}

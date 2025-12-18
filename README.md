@@ -14,6 +14,16 @@ You also need to select the solution on the world map or enter the coordinates.
 
 # Changelog
 
+## 0.50
+Added ability to go from the map back into the gallery.
+
+## 0.49
+Only be able to go through images in the fullscreen version of the app
+because of performance reasons.
+
+## 0.48
+Fixed leaderboard bug
+
 ## 0.47
 Fixed cannot set HTTP headers after they are sent
 
