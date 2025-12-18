@@ -12,7 +12,24 @@ You create a new Geo Dart from within the app.
 Just select images you want others to find and upload them.
 You also need to select the solution on the world map or enter the coordinates.
 
+# Terms and conditions
+The terms and conditions for playing GeoDart are available [here](https://www.reddit.com/r/GeoDart/wiki/index/).
+
+# Privacy policy
+The privacy policy of GeoDart is available [here](https://www.reddit.com/r/GeoDart/wiki/privacy-policy/).
+
 # Changelog
+## 0.60
+Dont render active user in the GuessMap in the clusters.
+
+## 0.58
+Updated to devvit 0.12.16
+
+## 0.57
+Guess Map reloads now small chunks of guesses and not all in once.
+
+## 0.51
+Fixed: could replay a game multiple times.
 
 ## 0.50
 Added ability to go from the map back into the gallery.

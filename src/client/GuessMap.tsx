@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import L from "leaflet";
+import L, { marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import 'leaflet.markercluster';
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -171,73 +171,90 @@ const GuessMap: React.FC = () => {
 
   async function setUsersSubmissions() {
     try {
-      setPlacePin(true);
       var markers = L.markerClusterGroup({maxClusterRadius: 40});
-      
-      const res = await fetch('/api/get_submissions');
-      const players = await res.json();
-      for (const player of players) {
-        const userName = player[0];
-        const lat = Number(player[1]);
-        const long = Number(player[2]);
-        const avatarURL = player[3];
-        if (mapRef.current && userName == "") {
-          const center = [lat, long];
-          const RINGS = [
-            { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "1", offset: 30000, zoom: 3 }, // 3000 km
-            { radius: 2500000, color: "#ffffff", fill: "#ffffff", points: "500", offset: 30000, zoom: 3 }, // 2500 km
-            { radius: 2000000, color: "#ff0000", fill: "#ff0000", points: "1000", offset: 30000, zoom: 3 }, // 2000 km
-            { radius: 1500000, color: "#ffffff", fill: "#ffffff", points: "1500", offset: 30000, zoom: 3 }, // 1500 km
-            { radius: 1000000, color: "#ff0000", fill: "#ff0000", points: "2000", offset: 30000, zoom: 3 }, // 1000 km
-            { radius:  500000, color: "#ffffff", fill: "#ffffff", points: "2500", offset: 30000, zoom: 3 }, //  500 km
-            { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  10000, zoom: 6 }, //  100 km
-            { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  8000, zoom: 7 }, //   50 km
-            { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 13 }, //    1 km
-          ];
-          RINGS.forEach(ring => {
-              L.circle(center, {
-                radius: ring.radius,
-                color: ring.color,
-                weight: 2,
-                fillColor: ring.fill,
-                fillOpacity: 0.0
-              }).addTo(mapRef.current!)
-            // Decide if label should be permanent
-    
-            // Offset beyond ring to place label
-            const safeDist = Math.max(10, ring.radius); // never <= 0
-            const labelPos = destinationPoint(lat, long, safeDist, 180);
-    
-            // Create DivIcon label
-            const label = L.marker([labelPos.lat, labelPos.lng], {
-              icon: L.divIcon({
-                className: "inline-block transform -translate-x-1/2",
-                html: `<div class="dart-label-inner">${ring.points}</div>`,
-                iconAnchor: [0, 30],
-                iconSize: undefined,
-              }),
-              interactive: false,
-            });
-    
-            label.addTo(mapRef.current!);
-            dartLabelsRef.current.push({ marker: label, zoom: ring.zoom });
-          });
-          handleZoom();
-        } else if (mapRef.current && Number.isFinite(lat) && Number.isFinite(long)) {
-          const avatarHtml = `
-            <div class="avatar-marker">
-              <img src="${avatarURL}" alt="${userName}" />
-              <div class="username">${userName}</div>
-            </div>
-          `;
+      mapRef.current!.addLayer(markers);
+      const res = await fetch('/api/og_position');
+      const data = await res.json();
+      drawDartBoard(data.latitude, data.longitude);
+      setPlacePin(true);
+      let allItems: ScanResult[] = [];
+      let cursor = 0;
+      const limit = 50;
+      let hasMore = true;
+      do {
+        const res = await fetch(`/api/get_submissions?limit=${limit}&cursor=${cursor}`);
+        const data = await res.json() as { items: ScanResult[], nextCursor: number, hasMore: boolean };
+        cursor = data.nextCursor;
+        hasMore = data.hasMore;
+        drawPlayers(data.items, markers);
+      } while (hasMore)
+    } catch (err) {
+      console.error("Error fetching location:", err);
+    }
+  }
+  
+  function drawPlayers(data: ScanResult[], markers: L.MarkerClusterGroup) {
+    const players = data;
+    for (const player of players) {
+      const userName = player[0];
+      const lat = Number(player[1]);
+      const long = Number(player[2]);
+      const avatarURL = player[3];
+      const currPlayer = player[4];
+      if (mapRef.current && Number.isFinite(lat) && Number.isFinite(long)) {
+        if (currPlayer) {
+          const markerIcon = createAvatarIcon(userName, avatarURL, 30, player[4]);
+          L.marker([lat, long], {icon: markerIcon}).addTo(mapRef.current!);
+        } else {
           const markerIcon = createAvatarIcon(userName, avatarURL, 30, player[4]);
           markers.addLayer(L.marker([lat, long], {icon: markerIcon}));
         }
       }
-      mapRef.current!.addLayer(markers);
-    } catch (err) {
-      console.error("Error fetching location:", err);
     }
+  }
+
+  function drawDartBoard(lat: number, long: number) {
+    const center = [lat, long];
+    const RINGS = [
+      { radius: 3000000, color: "#ff0000", fill: "#ff0000", points: "1", offset: 30000, zoom: 3 }, // 3000 km
+      { radius: 2500000, color: "#ffffff", fill: "#ffffff", points: "500", offset: 30000, zoom: 3 }, // 2500 km
+      { radius: 2000000, color: "#ff0000", fill: "#ff0000", points: "1000", offset: 30000, zoom: 3 }, // 2000 km
+      { radius: 1500000, color: "#ffffff", fill: "#ffffff", points: "1500", offset: 30000, zoom: 3 }, // 1500 km
+      { radius: 1000000, color: "#ff0000", fill: "#ff0000", points: "2000", offset: 30000, zoom: 3 }, // 1000 km
+      { radius:  500000, color: "#ffffff", fill: "#ffffff", points: "2500", offset: 30000, zoom: 3 }, //  500 km
+      { radius:  100000, color: "#ff0000", fill: "#ff0000", points: "2900", offset:  10000, zoom: 6 }, //  100 km
+      { radius:   50000, color: "#ffffff", fill: "#ffffff", points: "2950", offset:  8000, zoom: 7 }, //   50 km
+      { radius:    1000, color: "#ff0000", fill: "#ff0000", points: "3000", offset:  1000, zoom: 13 }, //    1 km
+    ];
+    RINGS.forEach(ring => {
+        L.circle(center, {
+          radius: ring.radius,
+          color: ring.color,
+          weight: 2,
+          fillColor: ring.fill,
+          fillOpacity: 0.0
+        }).addTo(mapRef.current!)
+      // Decide if label should be permanent
+
+      // Offset beyond ring to place label
+      const safeDist = Math.max(10, ring.radius); // never <= 0
+      const labelPos = destinationPoint(lat, long, safeDist, 180);
+
+      // Create DivIcon label
+      const label = L.marker([labelPos.lat, labelPos.lng], {
+        icon: L.divIcon({
+          className: "inline-block transform -translate-x-1/2",
+          html: `<div class="dart-label-inner">${ring.points}</div>`,
+          iconAnchor: [0, 30],
+          iconSize: undefined,
+        }),
+        interactive: false,
+      });
+
+      label.addTo(mapRef.current!);
+      dartLabelsRef.current.push({ marker: label, zoom: ring.zoom });
+    });
+    handleZoom();
   }
 
   function destinationPoint(

@@ -8,6 +8,7 @@ import { pipeline } from "stream";
 import { promisify } from "util";
 import { buffer } from 'stream/consumers';
 import { time } from 'console';
+import { setHeapSnapshotNearHeapLimit } from 'v8';
 
 const app = express();
 
@@ -180,13 +181,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: false, // TODO
+        already_played: true,
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: false, // TODO
+        already_played: true,
       });
       return;
     } else {
@@ -338,6 +339,8 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
 
 router.get('/api/get_submissions', async (req, res) => {
   const { postId } = context;
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  const start_cursor = Number(req.query.cursor) || 0;
   const userName = (await reddit.getCurrentUser())!.username;
 
   if (!postId) {
@@ -348,33 +351,15 @@ router.get('/api/get_submissions', async (req, res) => {
   }
 
   // FULL HSCAN LOOP
-  let cursor = 0;
+  let cursor = start_cursor;
   let fieldValues: { field: string; value: string }[] = [];
   do {
     const resp = await redis.hScan(postId, cursor);
     cursor = resp.cursor;
     fieldValues.push(...resp.fieldValues);
-  } while (cursor !== 0);
-
-  let latitude = "";
-  let longitude = "";
+  } while (cursor !== 0 && fieldValues.length < limit);
 
   const promises = fieldValues.map(async (x) => {
-    if (x.field === "latitude") {
-      latitude = x.value;
-    }
-
-    if (x.field === "longitude") {
-      longitude = x.value;
-    }
-
-    if (latitude && longitude) {
-      const result = ["", latitude, longitude, "", false] as const;
-      latitude = "";
-      longitude = "";
-      return result;
-    }
-
     if (x.field.startsWith("t2_")) {
       let redditorUser;
       try {
@@ -413,10 +398,10 @@ router.get('/api/get_submissions', async (req, res) => {
 
     return null;
   });
-
-    const results = (await Promise.all(promises))
-      .filter((x): x is ScanResult => x !== null);
-    res.json(results);
+  const results: ScanResult[] = [];
+  results.push(...(await Promise.all(promises))
+    .filter((x): x is ScanResult => x !== null));
+  res.json({items: results, nextCursor: cursor, hasMore: cursor!=0});
   }
 );
 
