@@ -205,7 +205,6 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
     const { postId } = context;
     const playTime = 60;
     const bufferTimer = 15;
-
     if (!postId) {
       res.status(400).json({
         status: 'error',
@@ -213,8 +212,15 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
       });
       return;
     }
-
     const userId = (await reddit.getCurrentUser())!.id;
+    const resp = (await redis.hGet(postId!, userId))?.split(";");
+    if (resp) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Already played!',
+      });
+      return;
+    }
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
     await redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp};""`});
 
@@ -232,6 +238,16 @@ router.get<{ postId: string }, PositionResponse | { status: string; message: str
         message: 'postId is required',
       });
       return;
+    }
+    const user = await reddit.getCurrentUser();
+    const userId = user!.id;
+    const resp = (await redis.hGet(postId, userId))?.split(";");
+    const time_now = Date.now()
+    const redditorAvatar = await user?.getSnoovatarUrl();
+    if (!resp) { // exploit detection
+      await redis.hSet(postId, {
+        [userId]: `${null};${null};${0};${0};${time_now};${redditorAvatar}`,
+      });
     }
 
     let [latitude, longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
@@ -290,11 +306,12 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     const redditorAvatar = await user?.getSnoovatarUrl();
     const [, , , , timestamp] = (await redis.hGet(postId, userId))?.split(";") ?? [];
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
+    const time_now = Date.now()
 
     if (latitude == null || longitude == null) {
       res.status(200);
       await redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${0};${0};${timestamp};${redditorAvatar}`,
+        [userId]: `${latitude};${longitude};${0};${0};${time_now};${redditorAvatar}`,
       });
 
       res.json({
@@ -309,19 +326,19 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
     const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
     
-    if (Date.now() > Number(timestamp)) {
+    if (time_now > Number(timestamp)) {
       res.status(400).json({
         status: 'error',
         message: 'Submitted after deadline :(',
       });
       await redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${distance};${0};${timestamp};${redditorAvatar}`, // TODO: this is completly wrong?
+        [userId]: `${null};${null};${distance};${0};${time_now};${redditorAvatar}`, // TODO: this is completly wrong?
       });
       return;
     }
 
     await redis.hSet(postId, {
-      [userId]: `${latitude};${longitude};${distance};${score};${timestamp};${redditorAvatar}`,
+      [userId]: `${latitude};${longitude};${distance};${score};${time_now};${redditorAvatar}`,
     });
 
     await redis.zAdd(`${postId}_leaderboard`,
@@ -342,7 +359,9 @@ router.get('/api/get_submissions', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 100);
   const start_cursor = Number(req.query.cursor) || 0;
   const userName = (await reddit.getCurrentUser())!.username;
-
+  const user = await reddit.getCurrentUser();
+  const userId = user!.id;
+  const [, , , , timestamp] = (await redis.hGet(postId!, userId))?.split(";") ?? [];
   if (!postId) {
     return res.status(400).json({
       status: 'error',
@@ -350,6 +369,13 @@ router.get('/api/get_submissions', async (req, res) => {
     });
   }
 
+  if (!timestamp) {
+    res.status(400).json({
+      status: 'error',
+      message: 'Did not submit yet!',
+    });
+    return;
+  }
   // FULL HSCAN LOOP
   let cursor = start_cursor;
   let fieldValues: { field: string; value: string }[] = [];

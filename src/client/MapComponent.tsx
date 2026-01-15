@@ -28,6 +28,7 @@ const MapComponent: React.FC = () => {
   const placePinRef = useRef(showScore);
   const showScoreRef = useRef(showScore);
   const [score, setScore] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
   const [distance, setDistance] = useState(0);
   let latitude: number;
   let longitude: number;
@@ -148,11 +149,12 @@ const MapComponent: React.FC = () => {
   }, [time]);
 
   async function fetchAndAddMarker() {
-    if (mode == "submission") {
+    if (mode == "submission" || submitted) {
       return;
     }
 
     try {
+      setSubmitted(true);
       const latitude = app?.latitude;
       let longitude = app?.longitude;
       longitude = L.Util.wrapNum(longitude!, [-180, 180]);

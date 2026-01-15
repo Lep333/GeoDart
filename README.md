@@ -19,6 +19,12 @@ The terms and conditions for playing GeoDart are available [here](https://www.re
 The privacy policy of GeoDart is available [here](https://www.reddit.com/r/GeoDart/wiki/privacy-policy/).
 
 # Changelog
+## 0.63
+Fix for 0.62 that deletes users guesses.
+
+## 0.62
+Closed exploit of getting access to the solution, without playing.
+
 ## 0.60
 Dont render active user in the GuessMap in the clusters.
 
