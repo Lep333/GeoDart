@@ -129,18 +129,24 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
     let placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
     placeFromLast = placeFromLast? placeFromLast: 0;
     const ownRank = timesPlayed - placeFromLast!;
+    let rank = 1;
+    let prev_score = -1;
     if (ownRank <= 1000) {
       let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
       let newData: Leaderboard[] = [];
-      let rank = 1;
+      let index = 1;
       data.reverse();
       data.forEach((el) => {
+        if (el.score != prev_score) {
+          rank = index;
+        }
         if (el.member == userName) {
           newData.push({...el, rank: rank, curr_user: true});
         } else {
           newData.push({...el, rank: rank, curr_user: false});
         }
-        rank++;
+        prev_score = el.score;
+        index++;
       });
       res.json({leaderboard: newData});
       return;
@@ -148,15 +154,19 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
       const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
       let data = await redis.zRange(`${postId}_leaderboard`, Math.max(ownRank - 50, 0), upperRank, {by: 'rank'});
       let newData: Leaderboard[] = [];
-      let rank = timesPlayed - upperRank;
+      let index = timesPlayed - upperRank;
       data.reverse();
       data.forEach((el) => {
+        if (el.score != prev_score) {
+          rank = index;
+        }
         if (el.member == userName) {
           newData.push({...el, rank: rank, curr_user: true});
         } else {
           newData.push({...el, rank: rank, curr_user: false});
         }
-        rank++;
+        prev_score = el.score;
+        index++;
       });
       res.json({leaderboard: newData});
       return;
