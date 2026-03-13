@@ -503,7 +503,7 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
     }
 
     if (title == "") {
-      title = `GeoDart by ${userName}`;
+      title = `Can you find this place? GeoDart by ${userName}`;
     }
     // Load the image
     //const result = await blurImageFromURL(imageURL0);

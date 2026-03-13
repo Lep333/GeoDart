@@ -16,10 +16,12 @@ const CreateGame: React.FC = () => {
   const { getOGLocation } =  useCounter();
   const mapRef = useRef<L.Map | null>(null);
   const location = useRef<L.Marker | null>(null);
-  const [imageURLs, setURLs] = useState<string[]>([]);
+  let [imageURL0, setURL0] = useState<string>("");
+  let [imageURL1, setURL1] = useState<string>("");
+  let [imageURL2, setURL2] = useState<string>("");
   let [latitude, setLatitude] = useState<number | null>(null);
   let [longitude, setLongitude] = useState<number | null>(null);
-  let [title, setTitle] = useState<string | null>(null);
+  let [title, setTitle] = useState<string>("");
 
   useEffect(() => {
     // Ensure map is only initialized once
@@ -152,9 +154,9 @@ const CreateGame: React.FC = () => {
     // const base64 = await getBlurredBase64(imageURLs[0]!);
 
     const body = JSON.stringify({
-      imageURL0: imageURLs[0],
-      imageURL1: imageURLs[1],
-      imageURL2: imageURLs[2],
+      imageURL0: imageURL0,
+      imageURL1: imageURL1,
+      imageURL2: imageURL2,
       splashImage: "base64",
       latitude: latitude,
       longitude: longitude,
@@ -176,7 +178,18 @@ const CreateGame: React.FC = () => {
     navigate("/menu");
   }
 
-  async function uploadImage() {
+  const ImageSlot = ({url, placeholderText, setURLFn}) => (
+    <div  className="w-full flex justify-center my-2">
+      {(url)? (
+        <img className="w-1/2 aspect-square object-cover" onClick={() => uploadImage(setURLFn)} src={url}></img>
+      ): (
+        <div onClick={() => uploadImage(setURLFn)} className="w-1/2 aspect-square object-cover flex items-center justify-center bg-gray-200 border-2 border-dashed border-gray-400 rounded-md p-4 text-center text-xs text-gray-500">{placeholderText}</div>
+      )
+      }
+    </div>
+  );
+
+  async function uploadImage(setURLFn) {
     const result = await showForm({
       title: 'Picture Upload',
       fields: [
@@ -187,49 +200,33 @@ const CreateGame: React.FC = () => {
           helpText: 'Please upload an image, where redditors should guess the location.',
           required: true,
         },
-        {
-          type: 'image',
-          name: 'image1',
-          label: 'This could be a clue or more information.',
-          helpText: 'This is a clue or more information to find the first picture',
-          required: false,
-        },
-        {
-          type: 'image',
-          name: 'image2',
-          label: 'This could be a clue or more information.',
-          helpText: 'This is a clue or more information to find the first picture',
-          required: false,
-        },
       ],
     });
     if (result.action == "SUBMITTED") {
-      const {image0, image1, image2} = result.values;
-      let urls = [image0 ?? "", image1 ?? "", image2 ?? ""];
-      setURLs(urls);
+      const imageURL = result.values.image0;
+      if (imageURL) {
+        setURLFn(imageURL);
+      }
     }
   }
 
   return (
     <div className="grid grid-cols-1">
       <canvas id="canvas" hidden></canvas>
-      <div className="my-4 z-20 w-full flex justify-center">
-        <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
+      <div className="my-4 z-20 w-full flex items-center justify-center relative">
+        <button className="absolute left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
         <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white">Create Game</h1>
       </div>
-      <div className="flex flex-col justify-center rounded-md z-20 justify-center border-2 border-blue-500 my-2 mx-2 shadow-md">
+      <div className="flex items-center rounded-md z-20 border-2 border-blue-500 my-2 mx-2 shadow-md">
         <div className="px-2 font-sans font-medium">Title</div>
-        <div className="flex justify-center my-2">
-          <input placeholder="Can you find this place just with my photos?" type="text" name="title" value={title!} onChange={(e) => setTitle(e.target.value)}></input>
-        </div>
+        <input className="flex-grow bg-transparent outline-none border-b border-transparent focus:border-blue-300 transition-colors" placeholder="Can you find this place just with my photos?" type="text" name="title" value={title!} onChange={(e) => setTitle(e.target.value)}></input>
       </div>
-      <div className={`flex flex-col justify-center rounded-md z-20 justify-center border-2 ${imageURLs.length > 0? "border-lime-500" :"border-blue-500"} my-2 mx-2 shadow-md`}>
+      <div className={`flex flex-col justify-center rounded-md z-20 justify-center border-2 ${imageURL0 != ""? "border-lime-500" :"border-blue-500"} my-2 mx-2 shadow-md`}>
         <div className="px-2 font-sans font-medium">Upload image(s) redditors shall find the location.</div>
-        <div className="flex justify-center">
-          <button
-            className="rounded-md bg-blue-500 px-4 py-2 my-2 text-sm font-semibold opacity-100 focus:outline-none text-white"
-            onClick={() => { uploadImage() }}>Upload Image
-          </button>
+        <div className="flex flex-col items-center">
+          <ImageSlot url={imageURL0} placeholderText={"Add image of location people should guess"} setURLFn={setURL0} />
+          <ImageSlot url={imageURL1} placeholderText={"Add clue"} setURLFn={setURL1} />
+          <ImageSlot url={imageURL2} placeholderText={"Add clue"} setURLFn={setURL2} />
         </div>
       </div>
       <div className={`rounded-md justify-center border-2 ${latitude && longitude? "border-lime-500" :"border-blue-500"} mx-2 shadow-md`}>
@@ -243,13 +240,13 @@ const CreateGame: React.FC = () => {
         <div
           id="map"
           className="z-10"
-          style={{ height: "45vh", width: "100%" }}
+          style={{ height: "70vh", width: "100%" }}
         />
       </div>
       <div className="z-20 fixed bottom-10 w-full flex justify-center">
         <button
           className="z-50 rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold opacity-100 focus:outline-none text-white disabled:border-gray-200 disabled:bg-gray-50 disabled:text-blue-500"
-          disabled={imageURLs.length == 0 || !latitude || !longitude}
+          disabled={imageURL0 == "" || !latitude || !longitude}
           onClick={ () => createGame() }
         >Create Game</button>
       </div>
