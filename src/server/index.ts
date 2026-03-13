@@ -489,10 +489,10 @@ async function blurImageFromURL(url: string): Promise<string> {
 }
 
 router.post<{}, { status: string; url: string } | { status: string; message: string }, 
-  { imageURL0: string; imageURL1: string; imageURL2: string; splashImage: string; latitude: number; longitude: number }>(
+  { imageURL0: string; imageURL1: string; imageURL2: string; splashImage: string; latitude: number; longitude: number, title: string }>(
   '/api/create_geo_dart',
   async (req, res): Promise<void> => {
-    const { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude } = req.body;
+    let { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude, title } = req.body;
     const userName = (await reddit.getCurrentUser())!.username;
     //console.log("trying to create game");
     //console.log(imageURL0, imageURL1, imageURL2);
@@ -502,6 +502,9 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
       return;
     }
 
+    if (title == "") {
+      title = `GeoDart by ${userName}`;
+    }
     // Load the image
     //const result = await blurImageFromURL(imageURL0);
     //console.log(result);
@@ -515,13 +518,14 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
     //   type: "image",
     // });
 
-    const post = await createPost([imageURL0, imageURL1, imageURL2]);
+    const post = await createPost([imageURL0, imageURL1, imageURL2], title);
     await redis.hSet(post.id, {
       image0: imageURL0,
       image1: imageURL1,
       image2: imageURL2,
       latitude: String(latitude),
       longitude: String(longitude),
+      title: title,
       author: userName,
     });
 

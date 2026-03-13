@@ -19,6 +19,7 @@ const CreateGame: React.FC = () => {
   const [imageURLs, setURLs] = useState<string[]>([]);
   let [latitude, setLatitude] = useState<number | null>(null);
   let [longitude, setLongitude] = useState<number | null>(null);
+  let [title, setTitle] = useState<string | null>(null);
 
   useEffect(() => {
     // Ensure map is only initialized once
@@ -157,6 +158,7 @@ const CreateGame: React.FC = () => {
       splashImage: "base64",
       latitude: latitude,
       longitude: longitude,
+      title: title,
     });
 
     const resp = await fetch('/api/create_geo_dart', {
@@ -214,6 +216,12 @@ const CreateGame: React.FC = () => {
       <div className="my-4 z-20 w-full flex justify-center">
         <button className="fixed left-2 z-30 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white" onClick={() => { navigate("/menu") }}>Back</button>
         <h1 className="rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white">Create Game</h1>
+      </div>
+      <div className="flex flex-col justify-center rounded-md z-20 justify-center border-2 border-blue-500 my-2 mx-2 shadow-md">
+        <div className="px-2 font-sans font-medium">Title</div>
+        <div className="flex justify-center my-2">
+          <input placeholder="Can you find this place just with my photos?" type="text" name="title" value={title!} onChange={(e) => setTitle(e.target.value)}></input>
+        </div>
       </div>
       <div className={`flex flex-col justify-center rounded-md z-20 justify-center border-2 ${imageURLs.length > 0? "border-lime-500" :"border-blue-500"} my-2 mx-2 shadow-md`}>
         <div className="px-2 font-sans font-medium">Upload image(s) redditors shall find the location.</div>

@@ -1,6 +1,6 @@
 import { context, reddit } from '@devvit/web/server';
 
-export const createPost = async (imageUrls: Array<string>) => {
+export const createPost = async (imageUrls: Array<string>, title: string) => {
   const { subredditName } = context;
   if (!subredditName) {
     throw new Error('subredditName is required');
@@ -9,7 +9,7 @@ export const createPost = async (imageUrls: Array<string>) => {
   return await reddit.submitCustomPost({
     subredditName: subredditName,
     runAs: 'USER',
-    title: 'GEO DART',
+    title: title,
     userGeneratedContent: {
       text: "images",
       imageUrls: imageUrls,
