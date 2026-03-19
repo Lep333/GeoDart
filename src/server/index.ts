@@ -9,6 +9,8 @@ import { promisify } from "util";
 import { buffer } from 'stream/consumers';
 import { time } from 'console';
 import { setHeapSnapshotNearHeapLimit } from 'v8';
+import { start } from 'repl';
+import { stat } from 'fs';
 
 const app = express();
 
@@ -355,6 +357,16 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       {member: user!.username, score: score},
     );
 
+    let leaderboards: Record<string,string> = await redis.hGetAll("leaderboards");
+    Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
+      let [start_time, end_time] = value.split(";")
+      if (time_now > Number(start_time) && time_now < Number(end_time)) {
+        let points = Number(await redis.hGet(leaderboard_post_id, userId)) + score;
+        await redis.hSet(leaderboard_post_id, {
+          [userId]: `${points}`,
+        });
+      }
+    });
     res.json({
       latitude: Number(og_latitude),
       longitude: Number(og_longitude),
@@ -441,13 +453,17 @@ router.get('/api/get_submissions', async (req, res) => {
   }
 );
 
-router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
+router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void> => {
   try {
-    const post = await createPost(['']);
+    const post = await createPost([''], "Leaderboard", "leaderboard");
+    const user = await reddit.getCurrentUser();
+    const userId = user!.id;
+    const time_now = Date.now(); // TODO
+    const time_in_a_week = time_now + 7*24*60*60*1000; // TODO
 
-    res.json({
-      status: 'success',
-      message: `Post created in subreddit ${context.subredditName} with id ${post.id}`,
+    await redis.hSet("leaderboards", {
+        // from; to
+        [post.id]: `${time_now};${time_in_a_week}`,
     });
   } catch (error) {
     console.error(`Error creating post: ${error}`);
@@ -457,36 +473,6 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
     });
   }
 });
-
-async function blurImageFromURL(url: string): Promise<string> {
-  try {
-    // Fetch image as array buffer
-    console.log("hey");
-    const res = await fetch(url);
-    console.log("i am here?");
-    // if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
-    console.log(res.status);
-    const arrayBuffer = await res.arrayBuffer();
-    console.log(arrayBuffer);
-    const buffer = Buffer.from(arrayBuffer);
-    console.log(buffer);
-    // Load into Jimp
-    const image = await Jimp.read(buffer);
-    image.blur(5);
-    console.log("hello?");
-    // Return Base64 data URL
-    const base64 = await new Promise<string>((resolve, reject) => {
-      image.getBase64("image/jpeg", (err, data) => {
-        if (err) reject(err);
-        else resolve(data); // data is a "data:image/jpeg;base64,..." string
-      });
-    });
-    return base64;
-  } catch (err) {
-    console.error("Error processing image:", err);
-    throw err;
-  }
-}
 
 router.post<{}, { status: string; url: string } | { status: string; message: string }, 
   { imageURL0: string; imageURL1: string; imageURL2: string; splashImage: string; latitude: number; longitude: number, title: string }>(
@@ -518,7 +504,7 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
     //   type: "image",
     // });
 
-    const post = await createPost([imageURL0, imageURL1, imageURL2], title);
+    const post = await createPost([imageURL0, imageURL1, imageURL2], title, "default");
     await redis.hSet(post.id, {
       image0: imageURL0,
       image1: imageURL1,

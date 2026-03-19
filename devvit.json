@@ -9,6 +9,11 @@
         "height": "tall",
         "inline": true
       },
+      "leaderboard": {
+        "entry": "leaderboard.html",
+        "height": "tall",
+        "inline": true
+      },
       "game": {
         "entry": "index.html",
         "height": "tall"
@@ -40,5 +45,17 @@
       "asUser": ["SUBMIT_POST"]
     },
     "redis": true
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "Create leaderboard",
+        "description": "Creates leaderboard that shows points that a player accumulated over time",
+        "forUserType": "moderator",
+        "location": ["subreddit"],
+        "endpoint": "/internal/menu/create-leaderboard",
+        "postFilter": "none"
+      }
+    ]
   }
 }

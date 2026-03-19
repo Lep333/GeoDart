@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         default: resolve(dirname(fileURLToPath(import.meta.url)), 'splash.html'),
         game: resolve(dirname(fileURLToPath(import.meta.url)), 'index.html'),
+        leaderboard: resolve(dirname(fileURLToPath(import.meta.url)), 'leaderboard.html'),
       },
       output: {
         entryFileNames: '[name].js',

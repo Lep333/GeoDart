@@ -24,10 +24,10 @@
     "type-check": "tsc --build"
   },
   "dependencies": {
-    "@devvit/web": "0.12.6",
+    "@devvit/web": "0.12.15",
     "@panzoom/panzoom": "^4.6.0",
     "clsx": "2.1.1",
-    "devvit": "0.12.6",
+    "devvit": "0.12.15",
     "express": "5.1.0",
     "glfx": "^0.0.4",
     "jimp": "^1.6.0",
