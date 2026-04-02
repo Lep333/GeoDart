@@ -1,3 +1,5 @@
+import type { ModeratorPermission } from '@devvit/public-api';
+
 export type InitResponse = {
   type: 'init';
   postId: string;
@@ -27,6 +29,12 @@ export type PositionResponse = {
   distance: number;
   score: number;
 };
+
+export type SeasonLeaderboardResponse = {
+  end_timestamp: string;
+  leaderboard: Leaderboard[];
+  userPermission: ModeratorPermission
+}
 
 export type LeaderboardResponse = {
   leaderboard: Leaderboard[];

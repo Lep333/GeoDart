@@ -219,7 +219,7 @@ const CreateGame: React.FC = () => {
       </div>
       <div className="flex items-center rounded-md z-20 border-2 border-blue-500 my-2 mx-2 shadow-md">
         <div className="px-2 font-sans font-medium">Title</div>
-        <input className="flex-grow bg-transparent outline-none border-b border-transparent focus:border-blue-300 transition-colors" placeholder="Can you find this place just with my photos?" type="text" name="title" value={title!} onChange={(e) => setTitle(e.target.value)}></input>
+        <input className="flex-grow bg-transparent outline-none border-b border-transparent focus:border-blue-300 transition-colors" placeholder="Can you find this place?" type="text" name="title" value={title!} onChange={(e) => setTitle(e.target.value)}></input>
       </div>
       <div className={`flex flex-col justify-center rounded-md z-20 justify-center border-2 ${imageURL0 != ""? "border-lime-500" :"border-blue-500"} my-2 mx-2 shadow-md`}>
         <div className="px-2 font-sans font-medium">Upload image(s) redditors shall find the location.</div>

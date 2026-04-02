@@ -17,6 +17,10 @@
       "game": {
         "entry": "index.html",
         "height": "tall"
+      },
+      "create_game": {
+        "entry": "create_game.html",
+        "height": "tall"
       }
     }
   },
