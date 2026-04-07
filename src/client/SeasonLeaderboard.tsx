@@ -9,6 +9,7 @@ const SeasonLeaderboard: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<SeasonLeaderboardResponse | null>(null);
   const [isModerator, setModerator] = useState<boolean>(false);
   const [editSettings, setSettings] = useState<boolean>(false);
+  let [title, setTitle] = useState<string>("");
   let [startDate, setStartDate] = useState<Date>(new Date());
   let [endDate, setEndDate] = useState<Date>(new Date());
   const listRef = useRef<HTMLDivElement>(null);
@@ -88,7 +89,7 @@ const SeasonLeaderboard: React.FC = () => {
   
   return (
     <div className="flex w-full h-screen relative flex-col justify-center items-center gap-4 overflow-hidden">
-      <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">Season Leaderboard</div>
+      <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">{leaderboard?.title}</div>
       <div className="fixed top-25 rounded-md bg-blue-500 text-md font-bold px-4 py-2 text-white w-4/5">
         {`Play GeoDart to collect points until: ${new Date(leaderboard?.end_timestamp).toLocaleString()}`}
       </div>
@@ -98,12 +99,13 @@ const SeasonLeaderboard: React.FC = () => {
           </button> }
         { editSettings &&
         <div className="fixed flex flex-col top-25 z-20 rounded-md bg-blue-500 px-4 py-2 w-4/5 text-white">
-          <div>Title:<input placeholder="Spring Leaderboard"/></div>
+          <div>Title:<input onChange={(e) => {setTitle(e.target.value)}} placeholder="Spring Leaderboard"/></div>
           <div>Start date:<input type="date" onChange={(e) => {setStartDate(new Date(e.target.value))}}/></div>
           <div>End date:<input type="date" onChange={(e) => {setEndDate(new Date(e.target.value))}}/></div>
           <button className="border-white border-2 border-style-solid rounded-md my-2" onClick={async () => {setSettings(!editSettings)}}>Cancel</button>
           <button className="border-white border-2 border-style-solid rounded-md my-2" onClick={async () => {
             const obj = {
+              title: title,
               start: startDate.toString(),
               end: endDate.toString(),
             };

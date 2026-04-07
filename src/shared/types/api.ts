@@ -31,6 +31,8 @@ export type PositionResponse = {
 };
 
 export type SeasonLeaderboardResponse = {
+  title: string;
+  start_timestamp: string;
   end_timestamp: string;
   leaderboard: Leaderboard[];
   userPermission: ModeratorPermission

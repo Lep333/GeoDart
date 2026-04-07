@@ -30,7 +30,8 @@
   },
   "media": {},
   "triggers": {
-    "onAppInstall": "/internal/on-app-install"
+    "onAppInstall": "/internal/on-app-install",
+    "onPostDelete": "/internal/on-delete"
   },
   "dev": {
     "subreddit": "find_me_app_dev"

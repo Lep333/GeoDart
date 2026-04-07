@@ -461,10 +461,11 @@ router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void
     const userId = user!.id;
     const time_now = Date.now(); 
     const time_in_a_week = Date.now();
+    const title = "Season Leaderboard";
 
     await redis.hSet("leaderboards", {
         // from; to
-        [post.id]: `${time_now};${time_in_a_week}`,
+        [post.id]: `${title};${time_now};${time_in_a_week}`,
     });
   } catch (error) {
     console.error(`Error creating post: ${error}`);
@@ -475,7 +476,21 @@ router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void
   }
 });
 
-router.put<{ postId: string }, null | { status: string; message: string }, {start: string, end: string}>(
+router.post('/internal/on-delete', async (req, res): Promise<void> => {
+  try {
+    const postId: string = req.body.postId;
+    // subtract points from leaderboard
+    console.log(postId);
+  } catch (error) {
+    console.error(`Error creating post: ${error}`);
+    res.status(400).json({
+      status: 'error',
+      message: 'Failed to execute on-delete trigger',
+    });
+  }
+});
+
+router.put<{ postId: string }, null | { status: string; message: string }, { title: string, start: string, end: string}>(
   '/api/season-leaderboard', async (req, res): Promise<void> => {
   const subreddit_name = "GeoDart";
   const { postId } = context;
@@ -483,13 +498,13 @@ router.put<{ postId: string }, null | { status: string; message: string }, {star
   const user = await reddit.getCurrentUser();
   const userName = user!.username;
   const userPermission = await user!.getModPermissionsForSubreddit(subreddit_name);
-  let { start, end } = req.body;
+  let { title, start, end } = req.body;
   const startDate = new Date(start);
   const endDate = new Date(end);
   console.log(startDate, endDate);
   await redis.hSet("leaderboards", {
     // from; to
-    [postId!]: `${startDate};${endDate}`,
+    [postId!]: `${title};${startDate};${endDate}`,
   });
   res.status(200).json({ status: 'ok', message: "ok" });
 });
@@ -499,7 +514,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
   try {
     const subreddit_name = "GeoDart";
     const { postId } = context;
-    const end_timestamp_string = (await redis.hGet("leaderboards", postId!))?.split(";")[1];
+    const [title, start, end] = (await redis.hGet("leaderboards", postId!))!.split(";");
     const user = await reddit.getCurrentUser();
     const userName = user!.username;
     const userPermission = await user!.getModPermissionsForSubreddit(subreddit_name);
@@ -507,7 +522,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
     //const resp = (await redis.hGet(postId, userId))?.split(";");
     const timesPlayed = await redis.zCard(postId!);
     if (!timesPlayed) {
-      res.json({end_timestamp: end_timestamp_string!, leaderboard: [], userPermission: userPermission});
+      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
       return;
     }
     let placeFromLast = await redis.zRank(postId!, userName);
@@ -532,7 +547,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
         prev_score = el.score;
         index++;
       });
-      res.json({end_timestamp: end_timestamp_string!, leaderboard: newData, userPermission: userPermission});
+      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
       return;
     } else {
       const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
@@ -552,7 +567,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
         prev_score = el.score;
         index++;
       });
-      res.json({end_timestamp: end_timestamp_string!, leaderboard: newData, userPermission: userPermission});
+      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
       return;
     }
   } catch (error) {
