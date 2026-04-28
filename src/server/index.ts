@@ -360,11 +360,14 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
 
     // set season leaderboard
     let leaderboards: Record<string,string> = await redis.hGetAll("leaderboards");
+    console.log("leaderboards geholt...");
     Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
-      let [start, end] = value.split(";");
+      let [, start, end] = value.split(";");
       const start_time = (new Date(start!)).getTime();
       const end_time = (new Date(end!)).getTime();
+      //console.log("leaderboard", value, start_time, end_time);
       if (time_now > start_time && time_now < end_time) {
+        console.log("leaderboard", value, start_time, end_time, user!.username, score);
         await redis.zIncrBy(leaderboard_post_id, user!.username, score);
       }
     });
@@ -456,6 +459,7 @@ router.get('/api/get_submissions', async (req, res) => {
 
 router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void> => {
   try {
+    console.log("we are here");
     const post = await createPost([''], "Leaderboard", "leaderboard");
     const user = await reddit.getCurrentUser();
     const userId = user!.id;
@@ -464,8 +468,8 @@ router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void
     const title = "Season Leaderboard";
 
     await redis.hSet("leaderboards", {
-        // from; to
-        [post.id]: `${title};${time_now};${time_in_a_week}`,
+      // from; to
+      [post.id]: `${title};${time_now};${time_in_a_week}`,
     });
   } catch (error) {
     console.error(`Error creating post: ${error}`);
@@ -479,10 +483,36 @@ router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void
 router.post('/internal/on-delete', async (req, res): Promise<void> => {
   try {
     const postId: string = req.body.postId;
+    const createdAt: Date|undefined = req.body.createdAt;
+    const time_now = Date.now()
+    console.log("deleting ...");
+    const userScores = await redis.hGetAll(postId);
     // subtract points from leaderboard
+    let leaderboards: Record<string,string> = await redis.hGetAll("leaderboards");
+    Object.entries(userScores).forEach(async ([userID, value]) => {
+      let [lat, long, dist, score, time, redditorAvatar] = value.split(";");
+      console.log("entries: ", userID);
+      if (userID.slice(0,3) == "t2_") {
+        console.log("get user by ID: ", userID);
+        let user = await reddit.getUserById(userID as `t2_${string}`);
+        Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
+          let [, start, end] = value.split(";");
+          const start_time = (new Date(start!)).getTime();
+          const end_time = (new Date(end!)).getTime();
+          console.log("user: ", user!.username, "score: ", -score!);
+          console.log("start: ", start, "start_time: ", start_time, "end: ", end, "end_time: ", end_time, "time_now: ", time_now);
+          if (time_now > start_time && time_now < end_time) {
+            console.log("... found leaderboard");
+            await redis.zIncrBy(leaderboard_post_id, user!.username, -score!);
+          }
+        });
+      }
+    });
+
+
     console.log(postId);
   } catch (error) {
-    console.error(`Error creating post: ${error}`);
+    console.error(`Error deleting post: ${error}`);
     res.status(400).json({
       status: 'error',
       message: 'Failed to execute on-delete trigger',
@@ -522,11 +552,14 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
     //const resp = (await redis.hGet(postId, userId))?.split(";");
     const timesPlayed = await redis.zCard(postId!);
     if (!timesPlayed) {
+      console.log("never played?");
       res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
       return;
     }
+    console.log("test");
     let placeFromLast = await redis.zRank(postId!, userName);
     placeFromLast = placeFromLast? placeFromLast: 0;
+    console.log("times played: ", timesPlayed, "place from last: ", placeFromLast);
     const ownRank = timesPlayed - placeFromLast!;
     let rank = 1;
     let prev_score = -1;
@@ -545,9 +578,10 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
           newData.push({...el, rank: rank, curr_user: false});
         }
         prev_score = el.score;
+        console.log(el.score);
         index++;
       });
-      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
+      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: newData, userPermission: userPermission});
       return;
     } else {
       const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
@@ -567,7 +601,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
         prev_score = el.score;
         index++;
       });
-      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
+      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: newData, userPermission: userPermission});
       return;
     }
   } catch (error) {
