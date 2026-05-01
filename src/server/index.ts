@@ -1,16 +1,10 @@
 import express from 'express';
-import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse, LeaderboardResponse, Leaderboard, SeasonLeaderboardResponse } from '../shared/types/api';
+import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse, LeaderboardResponse, Leaderboard, SeasonLeaderboardResponse, UserGeoDartScore } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
-import { media } from '@devvit/media';
-import { Jimp } from "jimp";
-import { pipeline } from "stream";
-import { promisify } from "util";
-import { buffer } from 'stream/consumers';
-import { time } from 'console';
-import { setHeapSnapshotNearHeapLimit } from 'v8';
-import { start } from 'repl';
-import { stat } from 'fs';
+import { constructPersonalLeaderboard } from './leaderboard';
+import { setUserScore } from './userScore';
+import { setUserGeoDartResult, getUserGeoDartResult } from './databaseLayer';
 
 const app = express();
 
@@ -121,58 +115,13 @@ router.get<{ postId: string }, LeaderboardResponse | { status: string; message: 
       return;
     }
 
-    const userName = (await reddit.getCurrentUser())!.username;
-    //const resp = (await redis.hGet(postId, userId))?.split(";");
-    const timesPlayed = await redis.zCard(`${postId}_leaderboard`);
-    if (!timesPlayed) {
-      res.json({leaderboard: []});
+    const user = await reddit.getCurrentUser();
+    if (!user) {
+      res.status(401).json({ status: 'error', message: 'Unauthorized' });
       return;
     }
-    let placeFromLast = await redis.zRank(`${postId}_leaderboard`, userName);
-    placeFromLast = placeFromLast? placeFromLast: 0;
-    const ownRank = timesPlayed - placeFromLast!;
-    let rank = 1;
-    let prev_score = -1;
-    if (ownRank <= 1000) {
-      let data = await redis.zRange(`${postId}_leaderboard`, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
-      let newData: Leaderboard[] = [];
-      let index = 1;
-      data.reverse();
-      data.forEach((el) => {
-        if (el.score != prev_score) {
-          rank = index;
-        }
-        if (el.member == userName) {
-          newData.push({...el, rank: rank, curr_user: true});
-        } else {
-          newData.push({...el, rank: rank, curr_user: false});
-        }
-        prev_score = el.score;
-        index++;
-      });
-      res.json({leaderboard: newData});
-      return;
-    } else {
-      const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
-      let data = await redis.zRange(`${postId}_leaderboard`, Math.max(ownRank - 50, 0), upperRank, {by: 'rank'});
-      let newData: Leaderboard[] = [];
-      let index = timesPlayed - upperRank;
-      data.reverse();
-      data.forEach((el) => {
-        if (el.score != prev_score) {
-          rank = index;
-        }
-        if (el.member == userName) {
-          newData.push({...el, rank: rank, curr_user: true});
-        } else {
-          newData.push({...el, rank: rank, curr_user: false});
-        }
-        prev_score = el.score;
-        index++;
-      });
-      res.json({leaderboard: newData});
-      return;
-    }
+    const leaderboard = await constructPersonalLeaderboard(postId, user.username);
+    res.json({leaderboard: leaderboard});
   }
 );
 
@@ -193,13 +142,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: false, // TODO
+        already_played: false, // TODO: true
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: false, // TODO
+        already_played: false, // TODO: true
       });
       return;
     } else {
@@ -225,9 +174,9 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
       return;
     }
     const userId = (await reddit.getCurrentUser())!.id;
-    const resp = (await redis.hGet(postId!, userId))?.split(";");
+    const userScore = await getUserGeoDartResult(postId, userId);
     // TODO
-    // if (resp) {
+    // if (userScore != undefined) {
     //   res.status(400).json({
     //     status: 'error',
     //     message: 'Already played!',
@@ -235,8 +184,15 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
     //   return;
     // }
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
-    await redis.hSet(postId, {[userId]: `null;null;0;0;${timestamp};""`});
-
+    const scoreObj: UserGeoDartScore = {
+      longitude: null,
+      latitude: null,
+      distance: 0,
+      score: 0,
+      time: timestamp,
+      redditorAvatar: ""
+    };
+    await setUserGeoDartResult(postId, userId, scoreObj);
     res.json({ seconds: playTime });
   }
 );
@@ -273,36 +229,10 @@ router.get<{ postId: string }, PositionResponse | { status: string; message: str
   }
 );
 
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
-}
-
-function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371e3; // Earth radius in meters
-
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c; // distance in meters
-}
-
 router.post<{ postId: string }, PositionResponse | { status: string; message: string }, { latitude: number; longitude: number }>(
   '/api/submit_dart_position',
   async (req, res): Promise<void> => {
+    
     const { postId } = context;
     const {latitude, longitude} = req.body;
 
@@ -315,68 +245,31 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
     }
 
     const user = await reddit.getCurrentUser();
-    const userId = user!.id;
+    if (!user) {
+      res.status(401).json({
+        status: 'error',
+        message: 'Not authenticated',
+      });
+      return;
+    }
+    
+    const userId = user.id;
     const redditorAvatar = await user?.getSnoovatarUrl();
-    const [, , , , timestamp] = (await redis.hGet(postId, userId))?.split(";") ?? [];
+    const userScoreObj = await getUserGeoDartResult(postId,  userId);
     let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
     const time_now = Date.now()
 
-    if (latitude == null || longitude == null) {
-      res.status(200);
-      await redis.hSet(postId, {
-        [userId]: `${latitude};${longitude};${0};${0};${time_now};${redditorAvatar}`,
-      });
+    const scoreObj: UserGeoDartScore = {
+      longitude: longitude,
+      latitude: latitude,
+      distance: 0,
+      score: 0,
+      time: 0,
+      redditorAvatar: ""
+    };
+    const posResponse = await setUserScore(postId, user, user.id, scoreObj);
 
-      res.json({
-        latitude: Number(og_latitude),
-        longitude: Number(og_longitude),
-        distance: 0,
-        score: 0,
-      });
-      return;
-    }
-
-    const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), latitude, longitude) / 10) / 100;
-    const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
-    
-    if (time_now > Number(timestamp)) {
-      res.status(400).json({
-        status: 'error',
-        message: 'Submitted after deadline :(',
-      });
-      await redis.hSet(postId, {
-        [userId]: `${null};${null};${distance};${0};${time_now};${redditorAvatar}`,
-      });
-      return;
-    }
-
-    await redis.hSet(postId, {
-      [userId]: `${latitude};${longitude};${distance};${score};${time_now};${redditorAvatar}`,
-    });
-
-    await redis.zAdd(`${postId}_leaderboard`,
-      {member: user!.username, score: score},
-    );
-
-    // set season leaderboard
-    let leaderboards: Record<string,string> = await redis.hGetAll("leaderboards");
-    console.log("leaderboards geholt...");
-    Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
-      let [, start, end] = value.split(";");
-      const start_time = (new Date(start!)).getTime();
-      const end_time = (new Date(end!)).getTime();
-      //console.log("leaderboard", value, start_time, end_time);
-      if (time_now > start_time && time_now < end_time) {
-        console.log("leaderboard", value, start_time, end_time, user!.username, score);
-        await redis.zIncrBy(leaderboard_post_id, user!.username, score);
-      }
-    });
-    res.json({
-      latitude: Number(og_latitude),
-      longitude: Number(og_longitude),
-      distance: distance,
-      score: score,
-    });
+    res.json(posResponse);
   }
 );
 

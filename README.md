@@ -5,7 +5,7 @@ Geo Dart is an App where you get clues in the form of images.
 You have one minute to try and find the location on the images on a map.
 You can zoom in and out of the images with gestures on mobile and on desktop with the mouse wheel.
 Afterwards you see the distance of your guess to the original location of the images.
-And compare your result to other redditors.
+And compare your result to other redditors. Play GeoDart [here](https://www.reddit.com/r/GeoDart/) (requires a Reddit account).
 
 ## How to create a new Geo Dart?
 You create a new Geo Dart from within the app.

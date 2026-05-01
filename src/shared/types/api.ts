@@ -30,6 +30,15 @@ export type PositionResponse = {
   score: number;
 };
 
+export type UserGeoDartScore = {
+  longitude: number|null;
+  latitude: number|null;
+  distance: number;
+  score: number;
+  time: number;
+  redditorAvatar: string;
+};
+
 export type SeasonLeaderboardResponse = {
   title: string;
   start_timestamp: string;
