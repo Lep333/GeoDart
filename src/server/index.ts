@@ -1,10 +1,20 @@
 import express from 'express';
-import { InitResponse, IncrementResponse, DecrementResponse, PositionResponse, LeaderboardResponse, Leaderboard, SeasonLeaderboardResponse, UserGeoDartScore } from '../shared/types/api';
+import { pipeline } from 'node:stream/promises';
+import { InitResponse,
+  IncrementResponse,
+  DecrementResponse,
+  PositionResponse,
+  LeaderboardResponse,
+  Leaderboard,
+  SeasonLeaderboardResponse,
+  UserGeoDartScore,
+} from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { constructPersonalLeaderboard } from './leaderboard';
 import { setUserScore } from './userScore';
 import { setUserGeoDartResult, getUserGeoDartResult } from './databaseLayer';
+import { getUserSubmissions } from './userSubmissions';
 
 const app = express();
 
@@ -142,13 +152,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: false, // TODO: true
+        already_played: true,
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: false, // TODO: true
+        already_played: true,
       });
       return;
     } else {
@@ -175,14 +185,13 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
     }
     const userId = (await reddit.getCurrentUser())!.id;
     const userScore = await getUserGeoDartResult(postId, userId);
-    // TODO
-    // if (userScore != undefined) {
-    //   res.status(400).json({
-    //     status: 'error',
-    //     message: 'Already played!',
-    //   });
-    //   return;
-    // }
+    if (userScore != undefined) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Already played!',
+      });
+      return;
+    }
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
     const scoreObj: UserGeoDartScore = {
       longitude: null,
@@ -253,21 +262,19 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       return;
     }
     
-    const userId = user.id;
-    const redditorAvatar = await user?.getSnoovatarUrl();
-    const userScoreObj = await getUserGeoDartResult(postId,  userId);
-    let [og_latitude, og_longitude] = await redis.hMGet(postId, ['latitude', 'longitude']);
-    const time_now = Date.now()
+    let redditorAvatar = await user?.getSnoovatarUrl();
+    if (redditorAvatar == undefined) {
+      redditorAvatar = "";
+    }
 
-    const scoreObj: UserGeoDartScore = {
-      longitude: longitude,
-      latitude: latitude,
-      distance: 0,
-      score: 0,
-      time: 0,
-      redditorAvatar: ""
-    };
-    const posResponse = await setUserScore(postId, user, user.id, scoreObj);
+    const posResponse = await setUserScore(
+      postId,
+      user,
+      user.id,
+      latitude,
+      longitude,
+      redditorAvatar,
+    );
 
     res.json(posResponse);
   }
@@ -280,7 +287,7 @@ router.get('/api/get_submissions', async (req, res) => {
   const userName = (await reddit.getCurrentUser())!.username;
   const user = await reddit.getCurrentUser();
   const userId = user!.id;
-  const [, , , , timestamp] = (await redis.hGet(postId!, userId))?.split(";") ?? [];
+
   if (!postId) {
     return res.status(400).json({
       status: 'error',
@@ -288,74 +295,21 @@ router.get('/api/get_submissions', async (req, res) => {
     });
   }
 
-  if (!timestamp) {
+  const geoDartResultObj = await getUserGeoDartResult(postId, userId);
+  
+  if (!geoDartResultObj?.time) {
     res.status(400).json({
       status: 'error',
       message: 'Did not submit yet!',
     });
     return;
   }
-  // FULL HSCAN LOOP
-  let cursor = start_cursor;
-  let fieldValues: { field: string; value: string }[] = [];
-  do {
-    const resp = await redis.hScan(postId, cursor);
-    cursor = resp.cursor;
-    fieldValues.push(...resp.fieldValues);
-  } while (cursor !== 0 && fieldValues.length < limit);
-
-  const promises = fieldValues.map(async (x) => {
-    if (x.field.startsWith("t2_")) {
-      let redditorUser;
-      try {
-        redditorUser = await reddit.getUserById(x.field as `t2_${string}`);
-      } catch (err) {
-        console.error("Failed to fetch user:", x.field, err);
-        return null;
-      }
-
-      const redditorName = redditorUser?.username ?? "";
-      if (!redditorName) {
-        return null;
-      }
-      const values = x.value.split(";");
-
-      let redditorAvatar;
-      if (x.value.includes(",")) { // TODO: remove soonTM
-        redditorAvatar = await redditorUser?.getSnoovatarUrl();
-        const val = values[0];
-        let [lat, long, distance, score, time, avatar] = val!.split(",");
-        await redis.hSet(postId, {
-          [x.field]: `${lat};${long};${distance};${score};${time};${redditorAvatar}`
-        });
-      } else {
-        redditorAvatar = values[5];
-      }
-
-      return [
-        redditorName,
-        values[0],
-        values[1],
-        redditorAvatar,
-        redditorName === userName
-      ] as const;
-    }
-
-    return null;
-  });
-  const results: ScanResult[] = [];
-  results.push(...(await Promise.all(promises))
-    .filter((x): x is ScanResult => x !== null));
-  res.json({items: results, nextCursor: cursor, hasMore: cursor!=0});
-  }
-);
+  return await getUserSubmissions(postId, userName, start_cursor, limit);
+});
 
 router.post('/internal/menu/create-leaderboard', async (_req, res): Promise<void> => {
   try {
-    console.log("we are here");
     const post = await createPost([''], "Leaderboard", "leaderboard");
-    const user = await reddit.getCurrentUser();
-    const userId = user!.id;
     const time_now = Date.now(); 
     const time_in_a_week = Date.now();
     const title = "Season Leaderboard";
@@ -378,32 +332,24 @@ router.post('/internal/on-delete', async (req, res): Promise<void> => {
     const postId: string = req.body.postId;
     const createdAt: Date|undefined = req.body.createdAt;
     const time_now = Date.now()
-    console.log("deleting ...");
     const userScores = await redis.hGetAll(postId);
     // subtract points from leaderboard
     let leaderboards: Record<string,string> = await redis.hGetAll("leaderboards");
     Object.entries(userScores).forEach(async ([userID, value]) => {
       let [lat, long, dist, score, time, redditorAvatar] = value.split(";");
-      console.log("entries: ", userID);
       if (userID.slice(0,3) == "t2_") {
-        console.log("get user by ID: ", userID);
         let user = await reddit.getUserById(userID as `t2_${string}`);
         Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
           let [, start, end] = value.split(";");
           const start_time = (new Date(start!)).getTime();
           const end_time = (new Date(end!)).getTime();
-          console.log("user: ", user!.username, "score: ", -score!);
-          console.log("start: ", start, "start_time: ", start_time, "end: ", end, "end_time: ", end_time, "time_now: ", time_now);
           if (time_now > start_time && time_now < end_time) {
-            console.log("... found leaderboard");
             await redis.zIncrBy(leaderboard_post_id, user!.username, -score!);
           }
         });
       }
     });
 
-
-    console.log(postId);
   } catch (error) {
     console.error(`Error deleting post: ${error}`);
     res.status(400).json({
@@ -417,18 +363,17 @@ router.put<{ postId: string }, null | { status: string; message: string }, { tit
   '/api/season-leaderboard', async (req, res): Promise<void> => {
   const subreddit_name = "GeoDart";
   const { postId } = context;
-  const end_timestamp_string = (await redis.hGet("leaderboards", postId!))?.split(";")[1];
   const user = await reddit.getCurrentUser();
-  const userName = user!.username;
   const userPermission = await user!.getModPermissionsForSubreddit(subreddit_name);
   let { title, start, end } = req.body;
   const startDate = new Date(start);
   const endDate = new Date(end);
-  console.log(startDate, endDate);
-  await redis.hSet("leaderboards", {
-    // from; to
-    [postId!]: `${title};${startDate};${endDate}`,
-  });
+  if (userPermission) {
+    await redis.hSet("leaderboards", {
+      // from; to
+      [postId!]: `${title};${startDate};${endDate}`,
+    });
+  }
   res.status(200).json({ status: 'ok', message: "ok" });
 });
 
@@ -441,62 +386,25 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
     const user = await reddit.getCurrentUser();
     const userName = user!.username;
     const userPermission = await user!.getModPermissionsForSubreddit(subreddit_name);
-
-    //const resp = (await redis.hGet(postId, userId))?.split(";");
-    const timesPlayed = await redis.zCard(postId!);
-    if (!timesPlayed) {
-      console.log("never played?");
-      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: [], userPermission: userPermission});
+    if (!postId) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Error fetching season leaderboard. PostId was not provided.',
+      });
       return;
     }
-    console.log("test");
     let placeFromLast = await redis.zRank(postId!, userName);
     placeFromLast = placeFromLast? placeFromLast: 0;
-    console.log("times played: ", timesPlayed, "place from last: ", placeFromLast);
-    const ownRank = timesPlayed - placeFromLast!;
-    let rank = 1;
-    let prev_score = -1;
-    if (ownRank <= 1000) {
-      let data = await redis.zRange(postId!, 0, Math.max(timesPlayed - 1, 0), {by: 'rank'});
-      let newData: Leaderboard[] = [];
-      let index = 1;
-      data.reverse();
-      data.forEach((el) => {
-        if (el.score != prev_score) {
-          rank = index;
-        }
-        if (el.member == userName) {
-          newData.push({...el, rank: rank, curr_user: true});
-        } else {
-          newData.push({...el, rank: rank, curr_user: false});
-        }
-        prev_score = el.score;
-        console.log(el.score);
-        index++;
+    const leaderboard = await constructPersonalLeaderboard(postId, userName);
+    res.json(
+      {
+        title: title!,
+        start_timestamp: start!,
+        end_timestamp: end!,
+        leaderboard: leaderboard,
+        userPermission: userPermission
       });
-      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: newData, userPermission: userPermission});
-      return;
-    } else {
-      const upperRank = Math.min(ownRank + 950, timesPlayed - 1);
-      let data = await redis.zRange(postId!, Math.max(ownRank - 50, 0), upperRank, {by: 'rank'});
-      let newData: Leaderboard[] = [];
-      let index = timesPlayed - upperRank;
-      data.reverse();
-      data.forEach((el) => {
-        if (el.score != prev_score) {
-          rank = index;
-        }
-        if (el.member == userName) {
-          newData.push({...el, rank: rank, curr_user: true});
-        } else {
-          newData.push({...el, rank: rank, curr_user: false});
-        }
-        prev_score = el.score;
-        index++;
-      });
-      res.json({title: title!, start_timestamp: start!, end_timestamp: end!, leaderboard: newData, userPermission: userPermission});
-      return;
-    }
+    return;
   } catch (error) {
     console.error(`Error fetching season leaderboard: ${error}`);
     res.status(400).json({
@@ -513,8 +421,6 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
   async (req, res): Promise<void> => {
     let { imageURL0, imageURL1, imageURL2, splashImage, latitude, longitude, title } = req.body;
     const userName = (await reddit.getCurrentUser())!.username;
-    //console.log("trying to create game");
-    //console.log(imageURL0, imageURL1, imageURL2);
 
     if (latitude == null || longitude == null || !imageURL0) {
       res.status(400).json({ status: 'error', message: 'Error. Missing parameters' });
@@ -524,18 +430,6 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
     if (title == "") {
       title = `Can you find this place? GeoDart by ${userName}`;
     }
-    // Load the image
-    //const result = await blurImageFromURL(imageURL0);
-    //console.log(result);
-
-    // const splashImageURL = await media.upload({
-    //   url: splashImage,
-    //   type: "image",
-    // });
-    // const splashImageURL = await media.upload({
-    //   url: `data:image/jpeg;base64,${result}`,
-    //   type: "image",
-    // });
 
     const post = await createPost([imageURL0, imageURL1, imageURL2], title, "default");
     await redis.hSet(post.id, {
@@ -552,9 +446,6 @@ router.post<{}, { status: string; url: string } | { status: string; message: str
   }
 );
 
-// promisify pipeline so we can await it
-const streamPipeline = promisify(pipeline);
-
 // Proxy OSM tiles: /osm/{z}/{x}/{y}.png
 router.get("/api/osm/:z/:x/:y.png", async (req, res) => {
   const { z, x, y } = req.params;
@@ -569,7 +460,7 @@ router.get("/api/osm/:z/:x/:y.png", async (req, res) => {
 
     res.setHeader("Content-Type", "image/png");
     // Pipe the remote response body to the Express response
-    await streamPipeline(response.body as any, res);
+    await pipeline(response.body as any, res);
   } catch (err) {
     console.error("Error fetching OSM tile:", err);
     res.status(500).send("Internal proxy error");

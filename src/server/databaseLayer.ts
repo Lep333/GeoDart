@@ -1,4 +1,4 @@
-import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
+import { redis, reddit, createServer, context, getServerPort, HScanResponse } from '@devvit/web/server';
 import { UserGeoDartScore } from '../shared/types/api';
 
 export async function timesPlayedGeoDart(postID: string): Promise<number> {
@@ -52,4 +52,8 @@ export async function getSeasonalLeaderboards(): Promise<Record<string, string>>
 
 export async function addPersonalScoreToSeasonalLeaderboard(postID: string, userName: string, score: number) {
     redis.zIncrBy(postID, userName, score);
+}
+
+export async function scanRedis(postId: string, cursor: number): Promise<HScanResponse> {
+    return redis.hScan(postId, cursor);
 }

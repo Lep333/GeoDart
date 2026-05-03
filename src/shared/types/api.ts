@@ -44,7 +44,7 @@ export type SeasonLeaderboardResponse = {
   start_timestamp: string;
   end_timestamp: string;
   leaderboard: Leaderboard[];
-  userPermission: ModeratorPermission
+  userPermission: ModeratorPermission[];
 }
 
 export type LeaderboardResponse = {
@@ -56,4 +56,10 @@ export type Leaderboard = {
   score?: number;
   rank: number;
   curr_user: boolean;
+}
+
+export type UserGuessesResponse = {
+  items: ScanResult[],
+  nextCursor: number,
+  hasMore: boolean,
 }

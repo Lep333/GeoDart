@@ -2,13 +2,20 @@ import { PositionResponse, UserGeoDartScore } from "../shared/types/api";
 import { setUserGeoDartResult, getLatLng, setUserToLeaderboard, getUserGeoDartResult, getSeasonalLeaderboards, addPersonalScoreToSeasonalLeaderboard } from "./databaseLayer";
 import { User } from '@devvit/web/server';
 
-export async function setUserScore(postID: string, user: User, userID: string, userScore: UserGeoDartScore): Promise<PositionResponse|undefined> {    
+export async function setUserScore(postID: string, user: User, userID: string,
+  latitude: number, longitude: number, redditorAvatar: string): Promise<PositionResponse|undefined> {    
   const time_now = Date.now()
   const [og_latitude, og_longitude] = await getLatLng(postID);
-  const geoDartScore = await getUserGeoDartResult(postID, userID);
+  let geoDartScore = await getUserGeoDartResult(postID, userID);
+  if (!geoDartScore) {
+    return undefined;
+  }
+  geoDartScore.latitude = latitude;
+  geoDartScore.longitude = longitude;
+  geoDartScore.redditorAvatar = redditorAvatar;
 
-  if (userScore.latitude == null || userScore.longitude == null) {
-    await setUserGeoDartResult(postID, userID, userScore);
+  if (latitude == null || longitude == null) {
+    await setUserGeoDartResult(postID, userID, geoDartScore);
     return {
       latitude: Number(og_latitude),
       longitude: Number(og_longitude),
@@ -22,14 +29,14 @@ export async function setUserScore(postID: string, user: User, userID: string, u
     //   status: 'error',
     //   message: 'Submitted after deadline :(',
     // });
-    await setUserGeoDartResult(postID, userID, userScore);
+    await setUserGeoDartResult(postID, userID, geoDartScore);
     return undefined;
   }
 
-  const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), userScore.latitude, userScore.longitude) / 10) / 100;
+  const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), geoDartScore.latitude, geoDartScore.longitude) / 10) / 100;
   const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
 
-  await setUserGeoDartResult(postID, userID, userScore);
+  await setUserGeoDartResult(postID, userID, geoDartScore);
 
   setUserToLeaderboard(postID, user.username, score);
 
@@ -70,7 +77,7 @@ function haversineDistance(
   return R * c; // distance in meters
 }
 
-function updatePersonalScoreOnSeasonLeaderboard(user: User, time_now: number, score: number) {
+async function updatePersonalScoreOnSeasonLeaderboard(user: User, time_now: number, score: number) {
   // set season leaderboard
   let leaderboards: Record<string,string> = await getSeasonalLeaderboards();
   Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
