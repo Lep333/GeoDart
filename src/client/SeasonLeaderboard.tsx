@@ -99,21 +99,39 @@ const SeasonLeaderboard: React.FC = () => {
           </button> }
         { editSettings &&
         <div className="fixed flex flex-col top-25 z-20 rounded-md bg-blue-500 px-4 py-2 w-4/5 text-white">
-          <div>Title:<input onChange={(e) => {setTitle(e.target.value)}} placeholder="Spring Leaderboard"/></div>
-          <div>Start date:<input type="date" onChange={(e) => {setStartDate(new Date(e.target.value))}}/></div>
-          <div>End date:<input type="date" onChange={(e) => {setEndDate(new Date(e.target.value))}}/></div>
-          <button className="border-white border-2 border-style-solid rounded-md my-2" onClick={async () => {setSettings(!editSettings)}}>Cancel</button>
-          <button className="border-white border-2 border-style-solid rounded-md my-2" onClick={async () => {
-            const obj = {
-              title: title,
-              start: startDate.toString(),
-              end: endDate.toString(),
-            };
-            let resp = await fetch("/api/season-leaderboard", { method: 'PUT', headers: {
-              'Content-Type': 'application/json'}, body: JSON.stringify(obj)});
-            resp = await resp.json();
-            setSettings(!editSettings);
-          }}>Edit</button>
+          <div className="flex">
+            <div className="flex-1">Title: </div>
+            <input className="flex-1" defaultValue={leaderboard?.title} onChange={(e) => {setTitle(e.target.value)}} placeholder="Spring Leaderboard"/>
+          </div>
+          <div className="flex">
+            <div className="flex-1">Start date: </div>
+            <input className="flex-1" type="date"
+              defaultValue={new Date(leaderboard!.start_timestamp).toISOString().split('T')[0]}
+              onChange={(e) => {setStartDate(new Date(e.target.value))}}
+            />
+          </div>
+          <div className="flex">
+            <div className="flex-1">End date: </div>
+            <input className="flex-1" type="date"
+            defaultValue={new Date(leaderboard!.end_timestamp).toISOString().split('T')[0]}
+            onChange={(e) => {setEndDate(new Date(e.target.value))}}
+          />
+          </div>
+          <div className="flex mt-2">
+            <button className="border-white border-2 border-style-solid rounded-md flex-1 mr-1" onClick={async () => {
+              setSettings(!editSettings)}}>Cancel</button>
+            <button className="border-white border-2 border-style-solid rounded-md flex-1 ml-1" onClick={async () => {
+              const obj = {
+                title: title,
+                start: startDate.toString(),
+                end: endDate.toString(),
+              };
+              let resp = await fetch("/api/season-leaderboard", { method: 'PUT', headers: {
+                'Content-Type': 'application/json'}, body: JSON.stringify(obj)});
+              resp = await resp.json();
+              setSettings(!editSettings);
+            }}>Edit</button>
+          </div>
         </div> }
         <div className="fixed top-45 bottom-30 grid grid-rows-[auto_1fr] w-2/3">
           <div className="grid grid-cols-[1fr_2fr_1fr] rounded-md bg-blue-500 text-white px-2 py-1 mb-1 shadow-md">
@@ -137,6 +155,12 @@ const SeasonLeaderboard: React.FC = () => {
                   <div className="text-right">{el.score}</div>
               </div>
             )) }
+            { leaderboard && leaderboard?.leaderboard.length == 0 &&
+              <div className="p-10 rounded-md bg-blue-500 text-white text-center">
+                Play a Game of GeoDart to
+                be the first one to show up here!
+              </div>
+            }
             </div>
           </div>
         </div>
