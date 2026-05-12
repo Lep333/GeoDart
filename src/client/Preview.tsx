@@ -6,7 +6,7 @@ import EarthLoader from "./LoadingScreen";
 
 const Preview: React.FC = () => {
   const navigate = useNavigate();
-  const { image0, image1, image2, author} = useCounter();
+  const { image0, image1, image2, author, seasonPoints} = useCounter();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [hasPlayed, setHasPlayed] = useState<boolean | null>(null);
@@ -59,6 +59,9 @@ const Preview: React.FC = () => {
       <div className="fixed top-10 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white z-20">Geo Dart</div>
       { author && <div className="fixed top-25 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 font-bold px-2 py-1 text-white z-20">{`by ${author}`}</div> }
       <div className="fixed top-40 left-1/2 -translate-x-1/2 rounded-md bg-blue-500 text-xl font-bold px-4 py-2 text-white text-center z-20">Can you find the location?</div>
+      { seasonPoints && <div className="text-xs absolute right-[-60px] top-[50px] w-[232px] rotate-45 bg-indigo-600 py-1 text-center font-semibold text-white shadow-lg z-25">
+        Earn Season Points
+      </div> }
       <img
         ref={imgRef}
         src={images[0]}

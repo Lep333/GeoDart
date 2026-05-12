@@ -9,6 +9,7 @@ export type InitResponse = {
   image1: string;
   image2: string;
   author: string;
+  seasonPointsAvailable: boolean;
 };
 
 export type IncrementResponse = {

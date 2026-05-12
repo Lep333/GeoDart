@@ -1,5 +1,7 @@
 import { PositionResponse, UserGeoDartScore } from "../shared/types/api";
 import { setUserGeoDartResult, getLatLng, setUserToLeaderboard, getUserGeoDartResult, getSeasonalLeaderboards, addPersonalScoreToSeasonalLeaderboard } from "./databaseLayer";
+import { eligableForSeasonalLeaderboard } from "./leaderboard";
+import { getPostById } from "./redditAPI";
 import { User } from '@devvit/web/server';
 
 export async function setUserScore(postID: string, user: User, userID: string,
@@ -33,14 +35,19 @@ export async function setUserScore(postID: string, user: User, userID: string,
     return undefined;
   }
 
-  const distance = Math.round(haversineDistance(Number(og_latitude), Number(og_longitude), geoDartScore.latitude, geoDartScore.longitude) / 10) / 100;
+  const distance = Math.round(haversineDistance(
+    Number(og_latitude),
+    Number(og_longitude),
+    geoDartScore.latitude,
+    geoDartScore.longitude
+  ) / 10) / 100;
   const score =  Math.ceil(Math.max(0, Math.round(3000 - distance)));
 
   await setUserGeoDartResult(postID, userID, geoDartScore);
 
   setUserToLeaderboard(postID, user.username, score);
 
-  updatePersonalScoreOnSeasonLeaderboard(user, time_now, score);
+  updatePersonalScoreOnSeasonLeaderboard(user, time_now, score, postID as `t3_${string}`);
 
   return {
     latitude: Number(og_latitude),
@@ -77,14 +84,16 @@ function haversineDistance(
   return R * c; // distance in meters
 }
 
-async function updatePersonalScoreOnSeasonLeaderboard(user: User, time_now: number, score: number) {
+async function updatePersonalScoreOnSeasonLeaderboard(user: User, time_now: number, score: number, postID: `t3_${string}`) {
   // set season leaderboard
   let leaderboards: Record<string,string> = await getSeasonalLeaderboards();
+  const post = await getPostById(postID);
+  const postCreatedDate = post.createdAt.getTime();
   Object.entries(leaderboards).forEach(async ([leaderboard_post_id, value]) => {
     let [, start, end] = value.split(";");
     const start_time = (new Date(start!)).getTime();
     const end_time = (new Date(end!)).getTime();
-    if (time_now > start_time && time_now < end_time) {
+    if (eligableForSeasonalLeaderboard(time_now, start_time, end_time, postCreatedDate)) {
       await addPersonalScoreToSeasonalLeaderboard(leaderboard_post_id, user.username, score);
     }
   });

@@ -11,6 +11,7 @@ interface CounterState {
   latitude: number;
   longitude: number;
   author: string;
+  seasonPoints: boolean;
 }
 
 export const useCounter = () => {
@@ -24,6 +25,7 @@ export const useCounter = () => {
     latitude: 0,
     longitude: 0,
     author: '',
+    seasonPoints: false,
   });
   const [postId, setPostId] = useState<string | null>(null);
 
@@ -45,6 +47,7 @@ export const useCounter = () => {
           latitude: 0,
           longitude: 0,
           author: data.author,
+          seasonPoints: data.seasonPointsAvailable,
         });
         setPostId(data.postId);
       } catch (err) {

@@ -1,8 +1,10 @@
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { Leaderboard } from '../shared/types/api';
-import { timesPlayedGeoDart, userRankInGame, getLeaderboard } from './databaseLayer';
+import { timesPlayedGeoDart, userRankInGame, getLeaderboard, getSeasonalLeaderboards } from './databaseLayer';
+import { getPostById } from './redditAPI';
 
-export async function constructPersonalLeaderboard(postID: string, userName: string): Promise<Leaderboard[]> {
+export async function constructPersonalLeaderboard(postID: string, userName: string, isSeasonLeaderboard: boolean = false): Promise<Leaderboard[]> {
+    postID = isSeasonLeaderboard? postID: `${postID}_leaderboard`;
     const timesPlayed = await timesPlayedGeoDart(postID);
     if (!timesPlayed) {
       return [];
@@ -41,4 +43,24 @@ function buildLeaderboard(data: {member: string, score: number}[], userName: str
         startIndex++;
     });
     return newData;
+}
+
+export function eligableForSeasonalLeaderboard(time_now: number, start_time: number, end_time: number, postCreatedDate: number): boolean {
+  return time_now > start_time && time_now < end_time && postCreatedDate > start_time && postCreatedDate < end_time;
+}
+
+export async function postingAddsToSeasonalLeaderboard(time_now: number, postID: `t3_${string}`): Promise<boolean> {
+  // set season leaderboard
+  let leaderboards: Record<string,string> = await getSeasonalLeaderboards();
+  const post = await getPostById(postID);
+  const postCreatedDate = post.createdAt.getTime();
+  for (const [leaderboard_post_id, value] of Object.entries(leaderboards)) {
+    let [, start, end] = value.split(";");
+    const start_time = (new Date(start!)).getTime();
+    const end_time = (new Date(end!)).getTime();
+    if (eligableForSeasonalLeaderboard(time_now, start_time, end_time, postCreatedDate)) {
+      return true;
+    }
+  };
+  return false;
 }

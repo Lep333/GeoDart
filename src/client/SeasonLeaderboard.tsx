@@ -90,8 +90,8 @@ const SeasonLeaderboard: React.FC = () => {
   return (
     <div className="flex w-full h-screen relative flex-col justify-center items-center gap-4 overflow-hidden">
       <div className="fixed top-10 rounded-md bg-blue-500 text-3xl font-bold px-4 py-2 text-white">{leaderboard?.title}</div>
-      <div className="fixed top-25 rounded-md bg-blue-500 text-md font-bold px-4 py-2 text-white w-4/5">
-        {`Play GeoDart to collect points until: ${new Date(leaderboard?.end_timestamp).toLocaleString()}`}
+      <div className="fixed top-25 rounded-md bg-blue-500 text-sm font-bold px-4 py-2 text-white w-4/5 text-center">
+        {`Play GeoDart to collect points from ${new Date(leaderboard?.start_timestamp).toLocaleString()} until: ${new Date(leaderboard?.end_timestamp).toLocaleString()}`}
       </div>
         { isModerator &&
           <button className="fixed bottom-10 right-10 rounded-md bg-blue-500 text-xl px-4 py-3" onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {setSettings(!editSettings)}}>

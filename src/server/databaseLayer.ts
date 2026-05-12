@@ -2,17 +2,17 @@ import { redis, reddit, createServer, context, getServerPort, HScanResponse } fr
 import { UserGeoDartScore } from '../shared/types/api';
 
 export async function timesPlayedGeoDart(postID: string): Promise<number> {
-    return redis.zCard(`${postID}_leaderboard`);
+    return redis.zCard(postID);
 }
 
 export async function userRankInGame(postID: string, userName: string): Promise<number> {
-    let placeFromLast = await redis.zRank(`${postID}_leaderboard`, userName);
+    let placeFromLast = await redis.zRank(postID, userName);
     placeFromLast = placeFromLast? placeFromLast: 0;
     return placeFromLast;
 }
 
 export async function getLeaderboard(postID: string, startElement: number): Promise<{member: string, score: number}[]> {
-    return redis.zRange(`${postID}_leaderboard`, 0, startElement, {by: 'rank'})
+    return redis.zRange(postID, 0, startElement, {by: 'rank'})
 }
 
 export async function setUserGeoDartResult(postID: string, userID: string, userScore: UserGeoDartScore) {

@@ -11,7 +11,7 @@ import { InitResponse,
 } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
-import { constructPersonalLeaderboard } from './leaderboard';
+import { constructPersonalLeaderboard, postingAddsToSeasonalLeaderboard } from './leaderboard';
 import { setUserScore } from './userScore';
 import { setUserGeoDartResult, getUserGeoDartResult } from './databaseLayer';
 import { getUserSubmissions } from './userSubmissions';
@@ -50,7 +50,8 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
       ]);
       let [image0, image1, image2, postAuthor] = await redis.hMGet(postId, ['image0', 'image1', 'image2', 'author']);
       // console.log("images: ", image0, image1, image2);
-
+      const time_now = Date.now()
+      const seasonPointsAvailable = await postingAddsToSeasonalLeaderboard(time_now, postId);
       res.json({
         type: 'init',
         postId: postId,
@@ -60,6 +61,7 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
         image1: image1 ?? '',
         image2: image2 ?? '',
         author: postAuthor ?? '',
+        seasonPointsAvailable: seasonPointsAvailable ?? false,
       });
       return;
     } catch (error) {
@@ -152,13 +154,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: true,
+        already_played: false, // TODO
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: true,
+        already_played: false, // TODO
       });
       return;
     } else {
@@ -185,13 +187,13 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
     }
     const userId = (await reddit.getCurrentUser())!.id;
     const userScore = await getUserGeoDartResult(postId, userId);
-    if (userScore != undefined) {
-      res.status(400).json({
-        status: 'error',
-        message: 'Already played!',
-      });
-      return;
-    }
+    // if (userScore != undefined) { // TODO
+    //   res.status(400).json({
+    //     status: 'error',
+    //     message: 'Already played!',
+    //   });
+    //   return;
+    // }
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
     const scoreObj: UserGeoDartScore = {
       longitude: null,
@@ -252,7 +254,6 @@ router.post<{ postId: string }, PositionResponse | { status: string; message: st
       });
       return;
     }
-
     const user = await reddit.getCurrentUser();
     if (!user) {
       res.status(401).json({
@@ -395,7 +396,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
     }
     let placeFromLast = await redis.zRank(postId!, userName);
     placeFromLast = placeFromLast? placeFromLast: 0;
-    const leaderboard = await constructPersonalLeaderboard(postId, userName);
+    const leaderboard = await constructPersonalLeaderboard(postId, userName, true);
     res.json(
       {
         title: title!,

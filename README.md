@@ -19,6 +19,8 @@ The terms and conditions for playing GeoDart are available [here](https://www.re
 The privacy policy of GeoDart is available [here](https://www.reddit.com/r/GeoDart/wiki/privacy-policy/).
 
 # Changelog
+## 0.65
+- Added season leaderboards
 ## 0.64
 - Added custom post titles
 - Now skips menu when clicking "Play Game" inline reddit view and opens full screen view
