@@ -14,6 +14,20 @@ const SeasonLeaderboard: React.FC = () => {
   let [endDate, setEndDate] = useState<Date>(new Date());
   const listRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+  const [yOffset, setYOffset] = useState(0);
+
+  function scrollY(translateY: number) {
+    if (!listRef.current) return;
+    const list = listRef.current;
+    const container = list.parentElement!;
+    const scrollHeight = container.scrollHeight; 
+    if (translateY <= 0 && translateY > -scrollHeight) {
+      setYOffset(translateY);
+    } 
+    if (translateY > 0) {
+      setYOffset(0);
+    }
+  }
 
   useEffect(() => {
     async function getLeaderboard() {
@@ -40,7 +54,9 @@ const SeasonLeaderboard: React.FC = () => {
     if (!userEl) {
       return;
     }
-
+    setTitle(leaderboard!.title);
+    setStartDate(new Date(leaderboard!.start_timestamp));
+    setEndDate(new Date(leaderboard!.end_timestamp));
     if (currentMode === 'inline') {
       // 1) If username NOT in list → userRef = null → no animation
       const containerTop = container.offsetTop;
@@ -59,8 +75,8 @@ const SeasonLeaderboard: React.FC = () => {
       const targetCenter = userEl.offsetTop + userEl.offsetHeight / 2;
 
       const translateY = containerHeight / 2 - targetCenter;
-
-      list.style.transform = `translateY(${translateY}px)`;
+      scrollY(translateY);
+      //list.style.transform = `translateY(${translateY}px)`;
     } else {
       const containerTop = container.scrollTop;
       const containerBottom = containerTop + container.clientHeight;
@@ -93,10 +109,6 @@ const SeasonLeaderboard: React.FC = () => {
       <div className="fixed top-25 rounded-md bg-blue-500 text-sm font-bold px-4 py-2 text-white w-4/5 text-center">
         {`Play GeoDart to collect points from ${new Date(leaderboard?.start_timestamp).toLocaleString()} until: ${new Date(leaderboard?.end_timestamp).toLocaleString()}`}
       </div>
-        { isModerator &&
-          <button className="fixed bottom-10 right-10 rounded-md bg-blue-500 text-xl px-4 py-3" onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {setSettings(!editSettings)}}>
-            <img className="h-[1em] w-auto" src="/settings_icon.svg" alt="settings icon"></img>
-          </button> }
         { editSettings &&
         <div className="fixed flex flex-col top-25 z-20 rounded-md bg-blue-500 px-4 py-2 w-4/5 text-white">
           <div className="flex">
@@ -133,7 +145,7 @@ const SeasonLeaderboard: React.FC = () => {
             }}>Edit</button>
           </div>
         </div> }
-        <div className="fixed top-45 bottom-30 grid grid-rows-[auto_1fr] w-2/3">
+        <div className="fixed top-45 bottom-25 grid grid-rows-[auto_1fr] w-2/3">
           <div className="grid grid-cols-[1fr_2fr_1fr] rounded-md bg-blue-500 text-white px-2 py-1 mb-1 shadow-md">
               <div>Rank</div>
               <div>Name</div>
@@ -143,6 +155,7 @@ const SeasonLeaderboard: React.FC = () => {
             <div
               ref={listRef}
               className="transition-transform duration-700 ease-out"
+              style={{ transform: `translateY(${yOffset}px)` }}
             >
             { leaderboard && leaderboard.leaderboard.map((el, i) => (
               <div
@@ -163,16 +176,37 @@ const SeasonLeaderboard: React.FC = () => {
             }
             </div>
           </div>
+          <div className="flex flex-row mt-1 gap-4">
+            <button 
+              className="basis-64 rounded-md bg-blue-500 text-white flex items-center justify-center disabled"
+              onClick={() => scrollY(yOffset + 120)}
+            >
+              <img src="/arrow_up.svg" alt="up"></img>
+            </button>
+            <button 
+              className="basis-64 rounded-md bg-blue-500 text-white flex items-center justify-center disabled"
+              onClick={() => scrollY(yOffset - 120)}
+            >
+              <img src="/arrow_down.svg" alt="down"></img>
+            </button>
+          </div>
         </div>
         <div className="fixed bottom-10 z-20 flex gap-2 justify-center items-center items-stretch max-w-sm">
-          <button className="fixed bottom-10 rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
-            onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
-              try {
-                await requestExpandedMode(event.nativeEvent, 'create_game');
-              } catch (error) {
-                console.error('Failed to enter expanded mode:', error);
-              }
-            }}>Create Game</button>
+          <div className="flex flex-row gap-2">
+            <button className="rounded-md bg-blue-500 px-4 py-2 text-xl font-semibold text-white opacity-100 focus:outline-none"
+              onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+                try {
+                  await requestExpandedMode(event.nativeEvent, 'create_game');
+                } catch (error) {
+                  console.error('Failed to enter expanded mode:', error);
+                }
+              }}>Create Game</button>
+            { isModerator &&
+            <button className="rounded-md bg-blue-500 text-xl px-4 py-3" 
+              onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {setSettings(!editSettings)}}>
+              <img className="h-[1em] w-auto" src="/settings_icon.svg" alt="settings icon"></img>
+            </button> }
+          </div>
         </div>
     </div>
   );

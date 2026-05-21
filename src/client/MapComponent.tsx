@@ -10,7 +10,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCounter } from './hooks/useCounter';
 import { PositionResponse } from "../shared/types/api";
 import { useTimer } from "./TimerContext";
-import dart from "/dart.svg";
+import dart_colored from "./public/dart_colored1.svg";
 import { AppContext } from "./AppContext";
 
 type DartLabel = {
@@ -90,7 +90,7 @@ const MapComponent: React.FC = () => {
     let marker: L.Marker;
 
     const dartIcon = L.icon({
-        iconUrl: dart,
+        iconUrl: dart_colored,
         iconSize: [40,40],
         iconAnchor: [40,40],
     });

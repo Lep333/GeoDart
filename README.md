@@ -19,6 +19,14 @@ The terms and conditions for playing GeoDart are available [here](https://www.re
 The privacy policy of GeoDart is available [here](https://www.reddit.com/r/GeoDart/wiki/privacy-policy/).
 
 # Changelog
+## 0.69
+- Small layout fixes
+## 0.68
+- Fixed devvit update problems
+## 0.67
+- Updated devvit
+## 0.66
+- Added scrollable season leaderboards
 ## 0.65
 - Added season leaderboards
 ## 0.64

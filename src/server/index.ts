@@ -9,7 +9,9 @@ import { InitResponse,
   SeasonLeaderboardResponse,
   UserGeoDartScore,
 } from '../shared/types/api';
-import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
+import {redis} from '@devvit/redis';
+import {reddit} from '@devvit/reddit'
+import { createServer, context, getServerPort } from '@devvit/server';
 import { createPost } from './core/post';
 import { constructPersonalLeaderboard, postingAddsToSeasonalLeaderboard } from './leaderboard';
 import { setUserScore } from './userScore';
@@ -20,13 +22,10 @@ const app = express();
 
 // Middleware for JSON body parsing
 // Allow larger payloads, e.g. 10 MB
-app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 // Middleware for URL-encoded body parsing
-app.use(express.urlencoded({ extended: true }));
 // Middleware for plain text body parsing
 app.use(express.text());
-
 const router = express.Router();
 
 router.get<{ postId: string }, InitResponse | { status: string; message: string }>(
@@ -154,13 +153,13 @@ router.get<{ postId: string }, { already_played: boolean } | PositionResponse | 
     const author = await (await reddit.getPostById(postId)).getAuthor();
     if (userId == author?.id) {
       res.json({
-        already_played: false, // TODO
+        already_played: true,
       });
       return;
     }
     if (resp) {
       res.json({
-        already_played: false, // TODO
+        already_played: true,
       });
       return;
     } else {
@@ -187,13 +186,13 @@ router.post<{ postId: string }, { seconds: number } | { status: string; message:
     }
     const userId = (await reddit.getCurrentUser())!.id;
     const userScore = await getUserGeoDartResult(postId, userId);
-    // if (userScore != undefined) { // TODO
-    //   res.status(400).json({
-    //     status: 'error',
-    //     message: 'Already played!',
-    //   });
-    //   return;
-    // }
+    if (userScore != undefined) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Already played!',
+      });
+      return;
+    }
     const timestamp = Date.now() + (playTime + bufferTimer) * 1000;
     const scoreObj: UserGeoDartScore = {
       longitude: null,
@@ -383,7 +382,8 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
   try {
     const subreddit_name = "GeoDart";
     const { postId } = context;
-    const [title, start, end] = (await redis.hGet("leaderboards", postId!))!.split(";");
+    const resp = await redis.hGet("leaderboards", postId!);
+    const [title, start, end] = resp!.split(";");
     const user = await reddit.getCurrentUser();
     const userName = user!.username;
     const userPermission = await user!.getModPermissionsForSubreddit(subreddit_name);
@@ -410,7 +410,7 @@ router.get<{ postId: string }, SeasonLeaderboardResponse | { status: string; mes
     console.error(`Error fetching season leaderboard: ${error}`);
     res.status(400).json({
       status: 'error',
-      message: 'Error fetching season leaderboard',
+      message: `Error fetching season leaderboard ${error}`,
     });
   }
   return;
